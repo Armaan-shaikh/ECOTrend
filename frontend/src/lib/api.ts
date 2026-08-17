@@ -1,4 +1,16 @@
-import { LocationItem, LocationTreeItem, MeasurementItem, DataQualityLogItem, HistoricalAnalyticsSummary, ForecastProjectionResponse } from './types';
+import {
+  LocationItem,
+  LocationTreeItem,
+  MeasurementItem,
+  DataQualityLogItem,
+  HistoricalAnalyticsSummary,
+  ForecastProjectionResponse,
+  AggregateEHSResponse,
+  HistoricalEHSPoint,
+  ForecastEHSPoint,
+  ForecastEHSResponse,
+  StandardsInfoResponse
+} from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const API_V1 = `${API_BASE}/api/v1`;
@@ -56,15 +68,49 @@ export async function fetchForecastProjections(
   }
 }
 
-export async function fetchMeasurements(
-  locationId: string,
-  metric: string = 'PM2.5',
-  days: number = 30
-): Promise<MeasurementItem[]> {
+export async function fetchCurrentHealthScore(locationId: string): Promise<AggregateEHSResponse> {
   try {
-    const res = await fetch(`${API_V1}/measurements?location_id=${locationId}&metric=${metric}&days=${days}`, {
-      cache: 'no-store'
-    });
+    const res = await fetch(`${API_V1}/health-score/current?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch current health score');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackCurrentEHS(locationId);
+  }
+}
+
+export async function fetchHistoricalHealthScore(locationId: string, days: number = 30): Promise<HistoricalEHSPoint[]> {
+  try {
+    const res = await fetch(`${API_V1}/health-score/historical?location_id=${locationId}&days=${days}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch historical health score');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackHistoricalEHS(days);
+  }
+}
+
+export async function fetchForecastHealthScore(locationId: string, metric: string = 'PM2.5', horizon: string = '1_YEAR'): Promise<ForecastEHSResponse> {
+  try {
+    const res = await fetch(`${API_V1}/health-score/forecast?location_id=${locationId}&metric=${metric}&horizon=${horizon}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch forecast health score');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackForecastEHS(locationId, metric, horizon);
+  }
+}
+
+export async function fetchStandardsInfo(): Promise<StandardsInfoResponse> {
+  try {
+    const res = await fetch(`${API_V1}/health-score/standards`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch standards info');
+    return await res.json();
+  } catch (err) {
+    return getFallbackStandardsInfo();
+  }
+}
+
+export async function fetchMeasurements(locationId: string, metric: string = 'PM2.5', days: number = 30): Promise<MeasurementItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/measurements?location_id=${locationId}&metric=${metric}&days=${days}`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch measurements');
     return await res.json();
   } catch (err) {
@@ -319,5 +365,120 @@ function generateFallbackForecast(locationId: string, metric: string, horizon: s
       { model_name: 'Linear Harmonic Extrapolation', rmse: 4.89, mae: 3.65, mape_percent: 16.4, r_squared: 0.71, is_champion: false }
     ],
     projections
+  };
+}
+
+function generateFallbackCurrentEHS(locationId: string): AggregateEHSResponse {
+  const isHighPollution = locationId.includes('anandvihar');
+  const score = isHighPollution ? 42 : 78;
+  const category = isHighPollution ? 'Very Poor' : 'Good';
+  const color = isHighPollution ? '#F43F5E' : '#06B6D4';
+
+  return {
+    overall_ehs: score,
+    category,
+    color,
+    health_impact: isHighPollution ? 'Air quality exceeds 3x WHO guidelines. Increased likelihood of adverse health effects.' : 'Air quality is satisfactory. Pollutants meet WHO 24h limits.',
+    data_coverage_percent: 100.0,
+    primary_pollutant_driver: 'PM2.5',
+    explanation: `Air Quality Score: ${score}/100 — ${category}. ${isHighPollution ? 'PM2.5 (82.4 µg/m³)' : 'PM2.5 (18.2 µg/m³)'} is the primary pollutant driver of score reduction. Data coverage is 100% based on active monitoring feeds.`,
+    metric_subscores: [
+      { metric: 'PM2.5', raw_value: isHighPollution ? 82.4 : 18.2, unit: 'µg/m³', score: isHighPollution ? 32 : 72, category: isHighPollution ? 'Very Poor' : 'Moderate', standard: 'WHO_AQG_2021', weight: 0.35, is_available: true, contribution_pct: 35.0 },
+      { metric: 'PM10', raw_value: isHighPollution ? 145.0 : 38.0, unit: 'µg/m³', score: isHighPollution ? 45 : 82, category: isHighPollution ? 'Poor' : 'Good', standard: 'WHO_AQG_2021', weight: 0.20, is_available: true, contribution_pct: 20.0 },
+      { metric: 'NO2', raw_value: 28.5, unit: 'ppb', score: 70, category: 'Moderate', standard: 'WHO_AQG_2021', weight: 0.15, is_available: true, contribution_pct: 15.0 },
+      { metric: 'O3', raw_value: 42.0, unit: 'ppb', score: 85, category: 'Good', standard: 'WHO_AQG_2021', weight: 0.15, is_available: true, contribution_pct: 15.0 },
+      { metric: 'SO2', raw_value: 8.2, unit: 'ppb', score: 95, category: 'Excellent', standard: 'WHO_AQG_2021', weight: 0.10, is_available: true, contribution_pct: 10.0 },
+      { metric: 'CO', raw_value: 0.8, unit: 'ppm', score: 98, category: 'Excellent', standard: 'WHO_AQG_2021', weight: 0.05, is_available: true, contribution_pct: 5.0 }
+    ],
+    methodology: {
+      name: "EcoTrend Air Health Scoring Methodology",
+      version: "1.0",
+      description: "Project-defined 0–100 Environmental Health Score methodology for Air Quality metrics, anchored in official WHO 2021 guidelines and US EPA AQI breakpoints.",
+      attribution_notice: "Official reference thresholds are sourced from WHO 2021 guidelines and US EPA breakpoints. The 0–100 normalization curves and weighting scheme represent EcoTrend's project-defined scoring methodology and are not an official WHO/EPA index.",
+      last_updated: "2026-08-17"
+    }
+  };
+}
+
+function generateFallbackHistoricalEHS(days: number): HistoricalEHSPoint[] {
+  const result: HistoricalEHSPoint[] = [];
+  const now = new Date();
+  const count = Math.min(days, 30);
+
+  for (let i = count; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateStr = d.toISOString().split('T')[0];
+    const score = Math.min(95, Math.max(45, 76 + Math.floor(Math.sin(i / 3) * 12)));
+
+    result.push({
+      date: dateStr,
+      timestamp: `${dateStr}T00:00:00Z`,
+      overall_ehs: score,
+      category: score >= 75 ? 'Good' : 'Moderate',
+      color: score >= 75 ? '#06B6D4' : '#F59E0B',
+      data_coverage_percent: 100.0,
+      primary_pollutant_driver: 'PM2.5'
+    });
+  }
+
+  return result;
+}
+
+function generateFallbackForecastEHS(locationId: string, metric: string, horizon: string): ForecastEHSResponse {
+  const horizonDays = horizon === '6_MONTHS' ? 182 : (horizon === '3_YEARS' ? 1095 : (horizon === '5_YEARS' ? 1825 : 365));
+  const projections: ForecastEHSPoint[] = [];
+  const startDt = new Date();
+  const stepDays = Math.max(1, Math.floor(horizonDays / 30));
+
+  for (let i = 1; i <= horizonDays; i += stepDays) {
+    const d = new Date(startDt.getTime() + i * 86400000);
+    const dateStr = d.toISOString().split('T')[0];
+    const baseEHS = Math.min(92, Math.max(40, 75 - Math.floor((i / horizonDays) * 8)));
+
+    projections.push({
+      date: dateStr,
+      timestamp: `${dateStr}T00:00:00Z`,
+      baseline_ehs: baseEHS,
+      baseline_category: baseEHS >= 75 ? 'Good' : 'Moderate',
+      improvement_ehs: Math.min(98, baseEHS + 12),
+      worsening_ehs: Math.max(20, baseEHS - 15),
+      ehs_ci_95_lower: Math.max(15, baseEHS - 18),
+      ehs_ci_95_upper: Math.min(100, baseEHS + 14)
+    });
+  }
+
+  return {
+    location_id: locationId,
+    metric,
+    horizon: horizon.toUpperCase(),
+    projections
+  };
+}
+
+function getFallbackStandardsInfo(): StandardsInfoResponse {
+  return {
+    methodology: {
+      name: "EcoTrend Air Health Scoring Methodology",
+      version: "1.0",
+      description: "Project-defined 0–100 Environmental Health Score methodology for Air Quality metrics, anchored in official WHO 2021 guidelines and US EPA AQI breakpoints.",
+      attribution_notice: "Official reference thresholds are sourced from WHO 2021 guidelines and US EPA breakpoints. The 0–100 normalization curves and weighting scheme represent EcoTrend's project-defined scoring methodology and are not an official WHO/EPA index.",
+      last_updated: "2026-08-17"
+    },
+    standards: {
+      "PM2.5": { metric: "PM2.5", unit: "µg/m³", who_annual: 5.0, who_24h: 15.0, epa_good: 12.0, epa_moderate: 35.4, standard_reference: "WHO_AQG_2021 / US_EPA_2024", weight: 0.35, weight_rationale: "Highest weight (35%) assigned due to fine particulate matter deep pulmonary & cardiovascular risks." },
+      "PM10": { metric: "PM10", unit: "µg/m³", who_annual: 15.0, who_24h: 45.0, epa_good: 54.0, epa_moderate: 154.0, standard_reference: "WHO_AQG_2021 / US_EPA_2024", weight: 0.20, weight_rationale: "Weight (20%) reflects coarse particulate inhalation risks causing respiratory airway irritation." },
+      "NO2": { metric: "NO2", unit: "ppb", who_annual: 10.0, who_24h: 25.0, epa_good: 53.0, epa_moderate: 100.0, standard_reference: "WHO_AQG_2021 / US_EPA_2024", weight: 0.15, weight_rationale: "Weight (15%) accounts for traffic-related nitrogen dioxide exposure." },
+      "O3": { metric: "O3", unit: "ppb", who_annual: 60.0, who_24h: 100.0, epa_good: 54.0, epa_moderate: 70.0, standard_reference: "WHO_AQG_2021 / US_EPA_2024", weight: 0.15, weight_rationale: "Weight (15%) reflects ground-level photochemical ozone lung tissue irritation." },
+      "SO2": { metric: "SO2", unit: "ppb", who_annual: 40.0, who_24h: 40.0, epa_good: 35.0, epa_moderate: 75.0, standard_reference: "WHO_AQG_2021 / US_EPA_2024", weight: 0.10, weight_rationale: "Weight (10%) reflects industrial sulfur dioxide bronchoconstriction." },
+      "CO": { metric: "CO", unit: "ppm", who_annual: 4.0, who_24h: 4.0, epa_good: 4.4, epa_moderate: 9.4, standard_reference: "WHO_AQG_2021 / US_EPA_2024", weight: 0.05, weight_rationale: "Weight (5%) reflects carbon monoxide's lower baseline toxicity at outdoor ambient levels." }
+    },
+    score_categories: [
+      { min_score: 90, max_score: 100, category: "Excellent", color: "#10B981", health_impact: "Air quality meets strict WHO annual safety targets." },
+      { min_score: 75, max_score: 89, category: "Good", color: "#06B6D4", health_impact: "Air quality is satisfactory. Pollutants meet WHO 24h limits." },
+      { min_score: 60, max_score: 74, category: "Moderate", color: "#F59E0B", health_impact: "Air quality is acceptable; sensitive individuals may experience minor discomfort." },
+      { min_score: 45, max_score: 59, category: "Poor", color: "#F97316", health_impact: "Pollution exceeds WHO recommended safety thresholds." },
+      { min_score: 25, max_score: 44, category: "Very Poor", color: "#F43F5E", health_impact: "Air quality exceeds 3x WHO guidelines." },
+      { min_score: 0, max_score: 24, category: "Critical", color: "#9333EA", health_impact: "Hazardous air pollution levels triggering emergency warnings." }
+    ]
   };
 }

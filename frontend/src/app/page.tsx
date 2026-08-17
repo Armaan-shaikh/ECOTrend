@@ -9,10 +9,31 @@ import { HistoricalAnalyticsChart } from '../components/HistoricalAnalyticsChart
 import { SeasonalityChart } from '../components/SeasonalityChart';
 import { ForecastControls } from '../components/ForecastControls';
 import { ForecastChart } from '../components/ForecastChart';
+import { EHSGaugeCard } from '../components/EHSGaugeCard';
+import { SubScoreCards } from '../components/SubScoreCards';
+import { EHSForecastChart } from '../components/EHSForecastChart';
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
-import { fetchLocationTree, fetchHistoricalAnalytics, fetchForecastProjections } from '../lib/api';
-import { LocationTreeItem, HistoricalAnalyticsSummary, ForecastProjectionResponse } from '../lib/types';
+import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
+
+import {
+  fetchLocationTree,
+  fetchHistoricalAnalytics,
+  fetchForecastProjections,
+  fetchCurrentHealthScore,
+  fetchHistoricalHealthScore,
+  fetchForecastHealthScore
+} from '../lib/api';
+
+import {
+  LocationTreeItem,
+  HistoricalAnalyticsSummary,
+  ForecastProjectionResponse,
+  AggregateEHSResponse,
+  HistoricalEHSPoint,
+  ForecastEHSResponse
+} from '../lib/types';
+
 import { Shield, Layers, RefreshCw } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -22,11 +43,18 @@ export default function DashboardPage() {
   const [selectedDays, setSelectedDays] = useState<number>(90);
   const [selectedHorizon, setSelectedHorizon] = useState<string>('1_YEAR');
 
+  // Analytics & Forecast state
   const [analytics, setAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
   const [forecast, setForecast] = useState<ForecastProjectionResponse | null>(null);
 
+  // EHS State (Phase 3A)
+  const [ehsData, setEhsData] = useState<AggregateEHSResponse | null>(null);
+  const [historicalEHS, setHistoricalEHS] = useState<HistoricalEHSPoint[]>([]);
+  const [forecastEHS, setForecastEHS] = useState<ForecastEHSResponse | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
+  const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -35,9 +63,10 @@ export default function DashboardPage() {
   const [showWorsening, setShowWorsening] = useState<boolean>(true);
   const [showCI, setShowCI] = useState<boolean>(true);
 
-  // Drawers
+  // Drawers & Modals
   const [isAuditOpen, setIsAuditOpen] = useState<boolean>(false);
   const [isScorecardOpen, setIsScorecardOpen] = useState<boolean>(false);
+  const [isMethodologyOpen, setIsMethodologyOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -46,6 +75,7 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAnalytics();
     loadForecast();
+    loadEHS();
   }, [selectedLocationId, selectedMetric, selectedDays, selectedHorizon]);
 
   const loadTree = async () => {
@@ -77,9 +107,27 @@ export default function DashboardPage() {
     }
   };
 
+  const loadEHS = async () => {
+    setLoadingEHS(true);
+    try {
+      const [currentRes, histRes, foreRes] = await Promise.all([
+        fetchCurrentHealthScore(selectedLocationId),
+        fetchHistoricalHealthScore(selectedLocationId, selectedDays),
+        fetchForecastHealthScore(selectedLocationId, selectedMetric, selectedHorizon)
+      ]);
+      setEhsData(currentRes);
+      setHistoricalEHS(histRes);
+      setForecastEHS(foreRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingEHS(false);
+    }
+  };
+
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadAnalytics(), loadForecast()]);
+    await Promise.all([loadAnalytics(), loadForecast(), loadEHS()]);
     setIsRefreshing(false);
   };
 
@@ -104,10 +152,20 @@ export default function DashboardPage() {
           onSelectDays={setSelectedDays}
         />
 
-        {/* 2. Key Metrics & Stat Summary Grid */}
+        {/* 2. Environmental Health Score (EHS 0–100) Banner (Phase 3A) */}
+        <EHSGaugeCard
+          ehsData={ehsData}
+          loading={loadingEHS}
+          onOpenMethodology={() => setIsMethodologyOpen(true)}
+        />
+
+        {/* 3. Pollutant Sub-Score Cards (PM2.5, PM10, NO2, O3, SO2, CO) */}
+        {ehsData && <SubScoreCards subscores={ehsData.metric_subscores} />}
+
+        {/* 4. Key Metrics & Stat Summary Grid */}
         <MetricsOverview analytics={analytics} loading={loadingAnalytics} />
 
-        {/* 3. Phase 2A Forecast & Scenario Projection Controls */}
+        {/* 5. Forecast & Scenario Projection Controls */}
         <ForecastControls
           selectedHorizon={selectedHorizon}
           showBaseline={showBaseline}
@@ -123,7 +181,14 @@ export default function DashboardPage() {
           onOpenScorecard={() => setIsScorecardOpen(true)}
         />
 
-        {/* 4. Main Multi-Scenario Forecast Chart (6M, 1Y, 3Y, 5Y) */}
+        {/* 6. Forecast-Linked EHS Projections Chart (Phase 3A) */}
+        <EHSForecastChart
+          forecastEHS={forecastEHS}
+          historicalEHS={historicalEHS}
+          loading={loadingEHS}
+        />
+
+        {/* 7. Main Multi-Scenario Forecast Chart (Concentrations) */}
         <ForecastChart
           forecast={forecast}
           historical={analytics}
@@ -134,7 +199,7 @@ export default function DashboardPage() {
           showCI={showCI}
         />
 
-        {/* 5. Main Dashboard Grid: Spatial Map & Historical Time-Series */}
+        {/* 8. Main Dashboard Grid: Spatial Map & Historical Time-Series */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* Spatial Station Map (5 Cols) */}
           <div className="lg:col-span-5 h-[420px] lg:h-auto">
@@ -151,15 +216,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 6. Seasonality Component Decomposition */}
+        {/* 9. Seasonality Component Decomposition */}
         <SeasonalityChart analytics={analytics} loading={loadingAnalytics} />
 
-        {/* 7. Footer Info */}
+        {/* 10. Footer Info */}
         <footer className="border-t border-eco-border/60 pt-6 mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-eco-muted gap-4">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 2A · <strong className="text-eco-text">Multi-Horizon Forecasting Engine (6M / 1Y / 3Y / 5Y)</strong>
+              EcoTrend Phase 3A · <strong className="text-eco-text">Environmental Health Score Engine (Methodology v1.0)</strong>
             </span>
           </div>
 
@@ -183,6 +248,12 @@ export default function DashboardPage() {
         isOpen={isScorecardOpen}
         onClose={() => setIsScorecardOpen(false)}
         forecast={forecast}
+      />
+
+      {/* EHS Methodology & Standards Reference Modal */}
+      <EHSMethodologyModal
+        isOpen={isMethodologyOpen}
+        onClose={() => setIsMethodologyOpen(false)}
       />
     </div>
   );

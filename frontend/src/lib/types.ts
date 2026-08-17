@@ -130,3 +130,89 @@ export interface ForecastProjectionResponse {
   leaderboard: ModelLeaderboardItem[];
   projections: ForecastPoint[];
 }
+
+export interface MetricSubScore {
+  metric: string;
+  raw_value?: number | null;
+  unit: string;
+  score: number;
+  category: string;
+  standard: string;
+  weight: number;
+  is_available: boolean;
+  contribution_pct: number;
+}
+
+export interface AggregateEHSResponse {
+  overall_ehs: number;
+  category: string;
+  color: string;
+  health_impact: string;
+  data_coverage_percent: number;
+  primary_pollutant_driver: string;
+  explanation: string;
+  metric_subscores: MetricSubScore[];
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
+}
+
+export interface HistoricalEHSPoint {
+  date: string;
+  timestamp: string;
+  overall_ehs: number;
+  category: string;
+  color: string;
+  data_coverage_percent: number;
+  primary_pollutant_driver: string;
+}
+
+export interface ForecastEHSPoint {
+  date: string;
+  timestamp: string;
+  baseline_ehs: number;
+  baseline_category: string;
+  improvement_ehs: number;
+  worsening_ehs: number;
+  ehs_ci_95_lower: number;
+  ehs_ci_95_upper: number;
+}
+
+export interface ForecastEHSResponse {
+  location_id: string;
+  metric: string;
+  horizon: string;
+  projections: ForecastEHSPoint[];
+}
+
+export interface StandardsInfoResponse {
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
+  standards: Record<string, {
+    metric: string;
+    unit: string;
+    who_annual: number;
+    who_24h: number;
+    epa_good: number;
+    epa_moderate: number;
+    standard_reference: string;
+    weight: number;
+    weight_rationale: string;
+  }>;
+  score_categories: Array<{
+    min_score: number;
+    max_score: number;
+    category: string;
+    color: string;
+    health_impact: string;
+  }>;
+}
