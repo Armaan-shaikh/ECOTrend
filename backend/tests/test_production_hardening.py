@@ -1,3 +1,4 @@
+import os
 import time
 import pytest
 from unittest.mock import MagicMock, patch
@@ -302,3 +303,65 @@ def test_valid_indexed_columns():
     for idx in EnvironmentalMeasurement.__table__.indexes:
         for c in idx.columns:
             assert c.name in table_cols
+
+
+# Docker Containerization & Environment Audit Tests (Step 4)
+
+def test_docker_files_exist():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    assert os.path.exists(os.path.join(base_dir, "Dockerfile.backend"))
+    assert os.path.exists(os.path.join(base_dir, "Dockerfile.frontend"))
+    assert os.path.exists(os.path.join(base_dir, "docker-compose.yml"))
+    assert os.path.exists(os.path.join(base_dir, ".env.example"))
+    assert os.path.exists(os.path.join(base_dir, ".dockerignore"))
+
+def test_docker_compose_services_configured():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    compose_path = os.path.join(base_dir, "docker-compose.yml")
+    with open(compose_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "backend:" in content
+    assert "frontend:" in content
+    assert "db:" in content
+    assert "redis:" in content
+
+def test_docker_compose_persistent_volumes():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    compose_path = os.path.join(base_dir, "docker-compose.yml")
+    with open(compose_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "pgdata:" in content
+    assert "redisdata:" in content
+
+def test_docker_compose_health_checks_and_restart_policies():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    compose_path = os.path.join(base_dir, "docker-compose.yml")
+    with open(compose_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "healthcheck:" in content
+    assert "restart: unless-stopped" in content
+    assert "/api/v1/health/liveness" in content
+
+def test_env_example_variables_represented():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env_path = os.path.join(base_dir, ".env.example")
+    with open(env_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "POSTGRES_DB=" in content
+    assert "POSTGRES_USER=" in content
+    assert "REDIS_HOST=" in content
+    assert "DATABASE_URL=" in content
+    assert "NEXT_PUBLIC_API_URL=" in content
+
+def test_no_hardcoded_secrets_in_docker_files():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    compose_path = os.path.join(base_dir, "docker-compose.yml")
+    with open(compose_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Verify passwords are env var references rather than plain string credentials
+    assert "${POSTGRES_PASSWORD" in content

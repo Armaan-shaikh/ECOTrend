@@ -4,19 +4,33 @@ services:
   db:
     image: timescale/timescaledb-ha:pg16
     container_name: ecotrend-db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ecotrend
-      POSTGRES_USER: ecotrend_user
-      POSTGRES_PASSWORD: ecotrend_password
+      POSTGRES_DB: ${POSTGRES_DB:-ecotrend}
+      POSTGRES_USER: ${POSTGRES_USER:-ecotrend_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecotrend_password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./backend/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ecotrend_user -d ecotrend"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecotrend_user} -d ${POSTGRES_DB:-ecotrend}"]
       interval: 5s
       timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecotrend-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 5
 
   backend:
@@ -24,26 +38,43 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ecotrend-backend
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=postgresql+psycopg2://ecotrend_user:ecotrend_password@db:5432/ecotrend
-      - CWD_ENV=production
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-ecotrend_user}:${POSTGRES_PASSWORD:-ecotrend_password}@db:5432/${POSTGRES_DB:-ecotrend}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health/liveness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ecotrend-frontend
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
 volumes:
   pgdata:
+  redisdata:
