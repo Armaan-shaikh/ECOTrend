@@ -7,21 +7,37 @@ import { SpatialMap } from '../components/SpatialMap';
 import { MetricsOverview } from '../components/MetricsOverview';
 import { HistoricalAnalyticsChart } from '../components/HistoricalAnalyticsChart';
 import { SeasonalityChart } from '../components/SeasonalityChart';
+import { ForecastControls } from '../components/ForecastControls';
+import { ForecastChart } from '../components/ForecastChart';
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
-import { fetchLocationTree, fetchHistoricalAnalytics } from '../lib/api';
-import { LocationTreeItem, HistoricalAnalyticsSummary } from '../lib/types';
-import { Database, Shield, Layers, RefreshCw } from 'lucide-react';
+import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
+import { fetchLocationTree, fetchHistoricalAnalytics, fetchForecastProjections } from '../lib/api';
+import { LocationTreeItem, HistoricalAnalyticsSummary, ForecastProjectionResponse } from '../lib/types';
+import { Shield, Layers, RefreshCw } from 'lucide-react';
 
 export default function DashboardPage() {
   const [tree, setTree] = useState<LocationTreeItem[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('loc_us_ny_nyc_manhattan');
   const [selectedMetric, setSelectedMetric] = useState<string>('PM2.5');
   const [selectedDays, setSelectedDays] = useState<number>(90);
+  const [selectedHorizon, setSelectedHorizon] = useState<string>('1_YEAR');
 
   const [analytics, setAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
+  const [forecast, setForecast] = useState<ForecastProjectionResponse | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
+  const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Scenario Toggles
+  const [showBaseline, setShowBaseline] = useState<boolean>(true);
+  const [showImprovement, setShowImprovement] = useState<boolean>(true);
+  const [showWorsening, setShowWorsening] = useState<boolean>(true);
+  const [showCI, setShowCI] = useState<boolean>(true);
+
+  // Drawers
   const [isAuditOpen, setIsAuditOpen] = useState<boolean>(false);
+  const [isScorecardOpen, setIsScorecardOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -29,7 +45,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadAnalytics();
-  }, [selectedLocationId, selectedMetric, selectedDays]);
+    loadForecast();
+  }, [selectedLocationId, selectedMetric, selectedDays, selectedHorizon]);
 
   const loadTree = async () => {
     const data = await fetchLocationTree();
@@ -48,9 +65,21 @@ export default function DashboardPage() {
     }
   };
 
+  const loadForecast = async () => {
+    setLoadingForecast(true);
+    try {
+      const data = await fetchForecastProjections(selectedLocationId, selectedMetric, selectedHorizon);
+      setForecast(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingForecast(false);
+    }
+  };
+
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    await loadAnalytics();
+    await Promise.all([loadAnalytics(), loadForecast()]);
     setIsRefreshing(false);
   };
 
@@ -78,7 +107,34 @@ export default function DashboardPage() {
         {/* 2. Key Metrics & Stat Summary Grid */}
         <MetricsOverview analytics={analytics} loading={loadingAnalytics} />
 
-        {/* 3. Main Dashboard Grid: Spatial Map & Historical Time-Series */}
+        {/* 3. Phase 2A Forecast & Scenario Projection Controls */}
+        <ForecastControls
+          selectedHorizon={selectedHorizon}
+          showBaseline={showBaseline}
+          showImprovement={showImprovement}
+          showWorsening={showWorsening}
+          showCI={showCI}
+          championModel={forecast?.champion_model || 'Model Competition'}
+          onSelectHorizon={setSelectedHorizon}
+          onToggleBaseline={() => setShowBaseline(!showBaseline)}
+          onToggleImprovement={() => setShowImprovement(!showImprovement)}
+          onToggleWorsening={() => setShowWorsening(!showWorsening)}
+          onToggleCI={() => setShowCI(!showCI)}
+          onOpenScorecard={() => setIsScorecardOpen(true)}
+        />
+
+        {/* 4. Main Multi-Scenario Forecast Chart (6M, 1Y, 3Y, 5Y) */}
+        <ForecastChart
+          forecast={forecast}
+          historical={analytics}
+          loading={loadingForecast}
+          showBaseline={showBaseline}
+          showImprovement={showImprovement}
+          showWorsening={showWorsening}
+          showCI={showCI}
+        />
+
+        {/* 5. Main Dashboard Grid: Spatial Map & Historical Time-Series */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* Spatial Station Map (5 Cols) */}
           <div className="lg:col-span-5 h-[420px] lg:h-auto">
@@ -95,15 +151,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 4. Seasonality Component Decomposition */}
+        {/* 6. Seasonality Component Decomposition */}
         <SeasonalityChart analytics={analytics} loading={loadingAnalytics} />
 
-        {/* 5. Phase 1 Scope Footer Info */}
+        {/* 7. Footer Info */}
         <footer className="border-t border-eco-border/60 pt-6 mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-eco-muted gap-4">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 1 Engine · <strong className="text-eco-text">Deterministic Historical Analytics Only</strong>
+              EcoTrend Phase 2A · <strong className="text-eco-text">Multi-Horizon Forecasting Engine (6M / 1Y / 3Y / 5Y)</strong>
             </span>
           </div>
 
@@ -120,6 +176,13 @@ export default function DashboardPage() {
         isOpen={isAuditOpen}
         onClose={() => setIsAuditOpen(false)}
         selectedLocationId={selectedLocationId}
+      />
+
+      {/* Model Backtest Scorecard Drawer */}
+      <BacktestScorecardDrawer
+        isOpen={isScorecardOpen}
+        onClose={() => setIsScorecardOpen(false)}
+        forecast={forecast}
       />
     </div>
   );

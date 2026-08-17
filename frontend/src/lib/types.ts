@@ -90,3 +90,43 @@ export interface HistoricalAnalyticsSummary {
   anomalies: AnomalyPoint[];
   seasonality: SeasonalityDecomposition;
 }
+
+export interface BacktestMetrics {
+  rmse: number;
+  mae: number;
+  mape_percent: number;
+  r_squared: number;
+}
+
+export interface ModelLeaderboardItem {
+  model_name: string;
+  rmse: number;
+  mae: number;
+  mape_percent: number;
+  r_squared: number;
+  is_champion: boolean;
+}
+
+export interface ForecastPoint {
+  timestamp: string;
+  date: string;
+  baseline_value: number;
+  improvement_value: number;
+  worsening_value: number;
+  ci_80_lower: number;
+  ci_80_upper: number;
+  ci_95_lower: number;
+  ci_95_upper: number;
+}
+
+export interface ForecastProjectionResponse {
+  location_id: string;
+  metric: string;
+  unit: string;
+  horizon: '6_MONTHS' | '1_YEAR' | '3_YEARS' | '5_YEARS';
+  horizon_days: number;
+  champion_model: string;
+  backtest_metrics: BacktestMetrics;
+  leaderboard: ModelLeaderboardItem[];
+  projections: ForecastPoint[];
+}

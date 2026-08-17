@@ -3,9 +3,11 @@ from app.api.locations import router as locations_router
 from app.api.measurements import router as measurements_router
 from app.api.analytics import router as analytics_router
 from app.api.ingestion import router as ingestion_router
+from app.api.forecast import router as forecast_router
 
 api_router = APIRouter()
 api_router.include_router(locations_router)
 api_router.include_router(measurements_router)
 api_router.include_router(analytics_router)
 api_router.include_router(ingestion_router)
+api_router.include_router(forecast_router)
