@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, func
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Index, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -13,6 +13,10 @@ class Location(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_location_lat_lon", "latitude", "longitude"),
+    )
 
     # Self-referencing hierarchy relationships
     parent = relationship("Location", remote_side=[id], backref="children")

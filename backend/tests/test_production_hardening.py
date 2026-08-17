@@ -7,7 +7,8 @@ from fastapi import FastAPI, Response, status
 from app.core.cache import cache_manager, cached_endpoint
 from app.core.database import get_db
 from app.api.router import api_router
-from app.api.health import get_liveness, get_readiness, get_overall_health
+from app.models.measurement import EnvironmentalMeasurement, DataQualityLog
+from app.models.location import Location
 
 # Setup test app for router testing
 app = FastAPI()
@@ -216,11 +217,9 @@ def test_db_failure_reflected_in_readiness_not_liveness():
     mock_db = MagicMock()
     mock_db.execute.side_effect = Exception("DB Connection Lost")
 
-    # Liveness is unaffected by DB failure
     res_live = client.get("/api/v1/health/liveness")
     assert res_live.status_code == 200
 
-    # Readiness reflects DB failure (503 Service Unavailable)
     app.dependency_overrides[get_db] = lambda: mock_db
     res_ready = client.get("/api/v1/health/readiness")
     app.dependency_overrides.clear()
@@ -274,3 +273,32 @@ def test_health_routes_registered_under_prefix():
     res_readiness = client.get("/api/v1/health/readiness")
     assert res_liveness.status_code == 200
     assert res_readiness.status_code in [200, 503]
+
+
+# Database Index Audit Tests (Step 3)
+
+def test_measurement_index_definitions():
+    indexes = {idx.name: [c.name for c in idx.columns] for idx in EnvironmentalMeasurement.__table__.indexes}
+    assert "idx_meas_domain_loc_time" in indexes
+    assert indexes["idx_meas_domain_loc_time"] == ["domain", "location_id", "timestamp"]
+
+    assert "idx_meas_domain_metric_time" in indexes
+    assert indexes["idx_meas_domain_metric_time"] == ["domain", "metric", "timestamp"]
+
+def test_location_spatial_index_definition():
+    indexes = {idx.name: [c.name for c in idx.columns] for idx in Location.__table__.indexes}
+    assert "idx_location_lat_lon" in indexes
+    assert indexes["idx_location_lat_lon"] == ["latitude", "longitude"]
+
+def test_no_duplicate_index_names():
+    all_indexes = []
+    all_indexes.extend([idx.name for idx in EnvironmentalMeasurement.__table__.indexes])
+    all_indexes.extend([idx.name for idx in Location.__table__.indexes])
+
+    assert len(all_indexes) == len(set(all_indexes))
+
+def test_valid_indexed_columns():
+    table_cols = set(EnvironmentalMeasurement.__table__.columns.keys())
+    for idx in EnvironmentalMeasurement.__table__.indexes:
+        for c in idx.columns:
+            assert c.name in table_cols

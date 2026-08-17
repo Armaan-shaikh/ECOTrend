@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, func
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Index, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -17,6 +17,11 @@ class EnvironmentalMeasurement(Base):
     source = Column(String(64), nullable=False)
     data_quality = Column(String(32), nullable=False, default="VALID", index=True)
     raw_value = Column(Float, nullable=True)
+
+    __table_args__ = (
+        Index("idx_meas_domain_loc_time", "domain", "location_id", "timestamp"),
+        Index("idx_meas_domain_metric_time", "domain", "metric", "timestamp"),
+    )
 
     location = relationship("Location", back_populates="measurements")
 
