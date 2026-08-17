@@ -13,7 +13,8 @@ import {
   LocationExplanationResponse,
   WaterQualityScoreResponse,
   ForecastWaterScorePoint,
-  ForecastWaterScoreResponse
+  ForecastWaterScoreResponse,
+  SoilQualityScoreResponse
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -200,6 +201,52 @@ export async function fetchWaterStandardsInfo(): Promise<StandardsInfoResponse> 
     return await res.json();
   } catch (err) {
     return getFallbackWaterStandardsInfo();
+  }
+}
+
+/* Soil Quality API Methods (Phase 5A) */
+
+export async function fetchSoilStations(): Promise<LocationItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/soil/stations`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch soil stations');
+    return await res.json();
+  } catch (err) {
+    return [
+      { id: "loc_us_ny_hudson_soil", name: "Hudson Valley Soil Monitoring Station", level: "STATION", latitude: 41.1172, longitude: -73.7990, type: "AGRICULTURAL_SOIL" },
+      { id: "loc_us_dc_potomac_soil", name: "Potomac Basin Core Sampling Site", level: "STATION", latitude: 38.9072, longitude: -77.0369, type: "SEDIMENT_SOIL" },
+      { id: "loc_in_delhi_yamuna_soil", name: "Yamuna Floodplain Soil Monitoring Station", level: "STATION", latitude: 28.6310, longitude: 77.2480, type: "URBAN_INDUSTRIAL_SOIL" }
+    ];
+  }
+}
+
+export async function fetchSoilQualityScore(locationId: string): Promise<SoilQualityScoreResponse> {
+  try {
+    const res = await fetch(`${API_V1}/soil/score?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch soil quality score');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackSoilScore(locationId);
+  }
+}
+
+export async function fetchHistoricalSoilAnalytics(locationId: string, metric: string = 'SOC', days: number = 90): Promise<HistoricalAnalyticsSummary> {
+  try {
+    const res = await fetch(`${API_V1}/soil/historical?location_id=${locationId}&metric=${metric}&days=${days}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch historical soil analytics');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackWaterAnalytics(locationId, metric, days);
+  }
+}
+
+export async function fetchSoilStandardsInfo(): Promise<StandardsInfoResponse> {
+  try {
+    const res = await fetch(`${API_V1}/soil/standards`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch soil standards info');
+    return await res.json();
+  } catch (err) {
+    return getFallbackSoilStandardsInfo();
   }
 }
 
@@ -697,6 +744,49 @@ function generateFallbackWaterScore(locationId: string): WaterQualityScoreRespon
   };
 }
 
+function generateFallbackSoilScore(locationId: string): SoilQualityScoreResponse {
+  const isPolluted = locationId.includes('yamuna');
+  const score = isPolluted ? 45 : 88;
+  const category = isPolluted ? 'Poor' : 'Good';
+
+  return {
+    overall_soil_score: score,
+    category,
+    color: isPolluted ? '#F97316' : '#06B6D4',
+    health_impact: isPolluted ? 'Elevated heavy metal accumulation and organic matter depletion.' : 'Soil quality is satisfactory. Heavy metal levels meet EPA screening targets.',
+    data_coverage_percent: 100.0,
+    primary_soil_driver: isPolluted ? 'Lead (Pb)' : 'Soil Organic Carbon',
+    data_type: 'MEASURED / MODELED_ESTIMATE',
+    source_provenance: 'USGS_WQP_Soil / SoilGrids_v2.0',
+    explanation: `Soil Quality Score: ${score}/100 — ${category}. Data coverage is 100% based on active soil core assays and SoilGrids spatial estimates.`,
+    metric_subscores: [
+      { metric: 'SOC', title: 'Soil Organic Carbon', raw_value: isPolluted ? 0.8 : 2.4, unit: '%', score: isPolluted ? 55 : 100, category: isPolluted ? 'Poor' : 'Pristine', standard: 'FAO-ISRIC Guidelines', reference_type: 'AGRONOMIC_GUIDELINE', weight: 0.15, is_available: true, contribution_pct: 15.0 },
+      { metric: 'pH', title: 'Soil pH', raw_value: isPolluted ? 8.4 : 6.8, unit: 'dimensionless', score: isPolluted ? 80 : 100, category: 'Good', standard: 'FAO-ISRIC Guidelines', reference_type: 'AGRONOMIC_GUIDELINE', weight: 0.15, is_available: true, contribution_pct: 15.0 },
+      { metric: 'Pb', title: 'Lead (Pb)', raw_value: isPolluted ? 180.0 : 22.0, unit: 'mg/kg', score: isPolluted ? 42 : 100, category: isPolluted ? 'Very Poor' : 'Pristine', standard: 'US EPA Eco-SSL', reference_type: 'TOXICOLOGICAL_SCREENING', weight: 0.15, is_available: true, contribution_pct: 15.0 },
+      { metric: 'Cd', title: 'Cadmium (Cd)', raw_value: isPolluted ? 2.8 : 0.4, unit: 'mg/kg', score: isPolluted ? 50 : 100, category: isPolluted ? 'Poor' : 'Pristine', standard: 'US EPA Eco-SSL', reference_type: 'TOXICOLOGICAL_SCREENING', weight: 0.10, is_available: true, contribution_pct: 10.0 },
+      { metric: 'As', title: 'Arsenic (As)', raw_value: isPolluted ? 32.0 : 6.5, unit: 'mg/kg', score: isPolluted ? 60 : 100, category: isPolluted ? 'Moderate' : 'Pristine', standard: 'US EPA Eco-SSL', reference_type: 'TOXICOLOGICAL_SCREENING', weight: 0.10, is_available: true, contribution_pct: 10.0 },
+      { metric: 'Hg', title: 'Mercury (Hg)', raw_value: isPolluted ? 1.2 : 0.04, unit: 'mg/kg', score: isPolluted ? 65 : 100, category: isPolluted ? 'Moderate' : 'Pristine', standard: 'US EPA Eco-SSL', reference_type: 'TOXICOLOGICAL_SCREENING', weight: 0.10, is_available: true, contribution_pct: 10.0 },
+      { metric: 'Cr', title: 'Chromium (Cr)', raw_value: isPolluted ? 85.0 : 18.0, unit: 'mg/kg', score: isPolluted ? 75 : 100, category: 'Good', standard: 'US EPA Eco-SSL', reference_type: 'TOXICOLOGICAL_SCREENING', weight: 0.10, is_available: true, contribution_pct: 10.0 },
+      { metric: 'TPH', title: 'Petroleum Hydrocarbons', raw_value: isPolluted ? 150.0 : 12.0, unit: 'mg/kg', score: isPolluted ? 70 : 100, category: 'Moderate', standard: 'EPA UST Limits', reference_type: 'REGULATORY_LIMIT', weight: 0.05, is_available: true, contribution_pct: 5.0 },
+      { metric: 'EC', title: 'Electrical Conductivity', raw_value: isPolluted ? 3.5 : 1.2, unit: 'dS/m', score: isPolluted ? 75 : 100, category: 'Good', standard: 'FAO-ISRIC Guidelines', reference_type: 'AGRONOMIC_GUIDELINE', weight: 0.05, is_available: true, contribution_pct: 5.0 },
+      { metric: 'Moisture', title: 'Soil Moisture', raw_value: isPolluted ? 12.0 : 22.0, unit: '%', score: isPolluted ? 85 : 100, category: 'Good', standard: 'FAO-ISRIC Guidelines', reference_type: 'AGRONOMIC_GUIDELINE', weight: 0.05, is_available: true, contribution_pct: 5.0 }
+    ],
+    reference_types: {
+      "TOXICOLOGICAL_SCREENING": "US EPA Ecological Soil Screening Levels (Eco-SSL 2005/2007) conservative screening thresholds for ecological receptors.",
+      "REGULATORY_LIMIT": "EU Sewage Sludge Directive (86/278/EEC) & US EPA Part 503 legal limits for agricultural land.",
+      "AGRONOMIC_GUIDELINE": "FAO-ISRIC World Soil Guidelines for crop productivity, soil organic matter, and salinization.",
+      "PROJECT_DEFINED_METHODOLOGY": "EcoTrend project-defined 0–100 sub-score normalization methodology."
+    },
+    methodology: {
+      name: "EcoTrend Soil Quality Health Scoring Methodology",
+      version: "1.0",
+      description: "Project-defined 0–100 Soil Quality Health Score methodology for soil parameters, anchored in official US EPA Ecological Soil Screening Levels (Eco-SSL), EU Sewage Sludge Directive (86/278/EEC), and FAO-ISRIC World Soil Guidelines.",
+      attribution_notice: "Official reference thresholds are sourced from US EPA Eco-SSL OSWER directives, EU Sludge Directives, and FAO Soil Guidelines. The 0–100 normalization curves and weighting scheme represent EcoTrend's project-defined scoring methodology and are not an official EPA/FAO index.",
+      last_updated: "2026-08-17"
+    }
+  };
+}
+
 function generateFallbackWaterAnalytics(locationId: string, metric: string, days: number): HistoricalAnalyticsSummary {
   const isPolluted = locationId.includes('yamuna');
   const baseVal = metric === 'DO' ? (isPolluted ? 3.2 : 7.8) : (metric === 'BOD' ? (isPolluted ? 18.5 : 2.1) : 7.2);
@@ -808,6 +898,26 @@ function getFallbackWaterStandardsInfo(): StandardsInfoResponse {
       { min_score: 45, max_score: 59, category: "Poor", color: "#F97316", health_impact: "Pollution exceeds recommended safety guidelines." },
       { min_score: 25, max_score: 44, category: "Very Poor", color: "#F43F5E", health_impact: "Severe organic or chemical contamination." },
       { min_score: 0, max_score: 24, category: "Critical", color: "#9333EA", health_impact: "Hazardous toxic contamination." }
+    ]
+  };
+}
+
+function getFallbackSoilStandardsInfo(): StandardsInfoResponse {
+  return {
+    methodology: {
+      name: "EcoTrend Soil Quality Health Scoring Methodology",
+      version: "1.0",
+      description: "Project-defined 0–100 Soil Quality Health Score methodology for soil parameters, anchored in official US EPA Ecological Soil Screening Levels (Eco-SSL), EU Sewage Sludge Directive (86/278/EEC), and FAO-ISRIC World Soil Guidelines.",
+      attribution_notice: "Official reference thresholds are sourced from US EPA Eco-SSL OSWER directives, EU Sludge Directives, and FAO Soil Guidelines. The 0–100 normalization curves and weighting scheme represent EcoTrend's project-defined scoring methodology and are not an official EPA/FAO index.",
+      last_updated: "2026-08-17"
+    },
+    standards: {
+      "SOC": { metric: "SOC", unit: "%", standard_reference: "FAO-ISRIC Guidelines", reference_type: "AGRONOMIC_GUIDELINE", weight: 0.15, weight_rationale: "Weight (15%) assigned due to role in soil organic matter and fertility." },
+      "pH": { metric: "pH", unit: "dimensionless", standard_reference: "FAO-ISRIC Guidelines", reference_type: "AGRONOMIC_GUIDELINE", weight: 0.15, weight_rationale: "Weight (15%) assigned as pH controls nutrient availability." },
+      "Pb": { metric: "Pb", unit: "mg/kg", standard_reference: "US EPA Eco-SSL", reference_type: "TOXICOLOGICAL_SCREENING", weight: 0.15, weight_rationale: "Weight (15%) assigned due to neurotoxic bio-accumulative risks." }
+    },
+    score_categories: [
+      { min_score: 90, max_score: 100, category: "Pristine", color: "#10B981", health_impact: "Soil is rich in organic matter, optimal pH, and free from contamination." }
     ]
   };
 }

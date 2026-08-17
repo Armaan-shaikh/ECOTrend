@@ -16,12 +16,21 @@ import { EnvironmentalSummaryCard } from '../components/EnvironmentalSummaryCard
 import { KeyFindingsPanel } from '../components/KeyFindingsPanel';
 import { ScenarioExplanationCard } from '../components/ScenarioExplanationCard';
 import { MetricGlossaryPanel } from '../components/MetricGlossaryPanel';
+
+// Water Components (Phase 4A & 4B)
 import { WaterScoreCard } from '../components/WaterScoreCard';
 import { WaterSubScoreCards } from '../components/WaterSubScoreCards';
 import { WaterGlossaryPanel } from '../components/WaterGlossaryPanel';
 import { WaterStandardsModal } from '../components/WaterStandardsModal';
 import { WaterScoreForecastChart } from '../components/WaterScoreForecastChart';
 import { WaterForecastControls } from '../components/WaterForecastControls';
+
+// Soil Components (Phase 5A)
+import { SoilScoreCard } from '../components/SoilScoreCard';
+import { SoilSubScoreCards } from '../components/SoilSubScoreCards';
+import { SoilGlossaryPanel } from '../components/SoilGlossaryPanel';
+import { SoilStandardsModal } from '../components/SoilStandardsModal';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -39,7 +48,10 @@ import {
   fetchHistoricalWaterAnalytics,
   fetchWaterForecastProjections,
   fetchWaterForecastScore,
-  fetchWaterExplanations
+  fetchWaterExplanations,
+  fetchSoilStations,
+  fetchSoilQualityScore,
+  fetchHistoricalSoilAnalytics
 } from '../lib/api';
 
 import {
@@ -53,10 +65,11 @@ import {
   ForecastEHSResponse,
   LocationExplanationResponse,
   WaterQualityScoreResponse,
-  ForecastWaterScoreResponse
+  ForecastWaterScoreResponse,
+  SoilQualityScoreResponse
 } from '../lib/types';
 
-import { Shield, Layers, Droplet, Wind } from 'lucide-react';
+import { Shield, Layers, Droplet, Wind, Database } from 'lucide-react';
 
 export default function DashboardPage() {
   const [domain, setDomain] = useState<EnvironmentalDomain>('air');
@@ -73,6 +86,11 @@ export default function DashboardPage() {
   const [selectedWaterStationId, setSelectedWaterStationId] = useState<string>('loc_us_ny_hudson');
   const [selectedWaterMetric, setSelectedWaterMetric] = useState<string>('DO');
 
+  // Soil Domain Selection State (Phase 5A)
+  const [soilStations, setSoilStations] = useState<LocationItem[]>([]);
+  const [selectedSoilStationId, setSelectedSoilStationId] = useState<string>('loc_us_ny_hudson_soil');
+  const [selectedSoilMetric, setSelectedSoilMetric] = useState<string>('SOC');
+
   // Air Data States
   const [analytics, setAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
   const [forecast, setForecast] = useState<ForecastProjectionResponse | null>(null);
@@ -81,12 +99,16 @@ export default function DashboardPage() {
   const [forecastEHS, setForecastEHS] = useState<ForecastEHSResponse | null>(null);
   const [explanations, setExplanations] = useState<LocationExplanationResponse | null>(null);
 
-  // Water Data States (Phase 4A & 4B)
+  // Water Data States
   const [waterScore, setWaterScore] = useState<WaterQualityScoreResponse | null>(null);
   const [waterAnalytics, setWaterAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
   const [waterForecast, setWaterForecast] = useState<ForecastProjectionResponse | null>(null);
   const [waterForecastScore, setWaterForecastScore] = useState<ForecastWaterScoreResponse | null>(null);
   const [waterExplanations, setWaterExplanations] = useState<LocationExplanationResponse | null>(null);
+
+  // Soil Data States (Phase 5A)
+  const [soilScore, setSoilScore] = useState<SoilQualityScoreResponse | null>(null);
+  const [soilAnalytics, setSoilAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
 
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
@@ -94,6 +116,7 @@ export default function DashboardPage() {
   const [loadingExplanations, setLoadingExplanations] = useState<boolean>(true);
   const [loadingWater, setLoadingWater] = useState<boolean>(true);
   const [loadingWaterForecast, setLoadingWaterForecast] = useState<boolean>(true);
+  const [loadingSoil, setLoadingSoil] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -107,10 +130,12 @@ export default function DashboardPage() {
   const [isScorecardOpen, setIsScorecardOpen] = useState<boolean>(false);
   const [isMethodologyOpen, setIsMethodologyOpen] = useState<boolean>(false);
   const [isWaterStandardsOpen, setIsWaterStandardsOpen] = useState<boolean>(false);
+  const [isSoilStandardsOpen, setIsSoilStandardsOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
     loadWaterStations();
+    loadSoilStations();
   }, []);
 
   useEffect(() => {
@@ -119,11 +144,13 @@ export default function DashboardPage() {
       loadForecast();
       loadEHS();
       loadExplanations();
-    } else {
+    } else if (domain === 'water') {
       loadWaterData();
       loadWaterForecastData();
+    } else {
+      loadSoilData();
     }
-  }, [domain, selectedLocationId, selectedMetric, selectedDays, selectedHorizon, selectedWaterStationId, selectedWaterMetric]);
+  }, [domain, selectedLocationId, selectedMetric, selectedDays, selectedHorizon, selectedWaterStationId, selectedWaterMetric, selectedSoilStationId, selectedSoilMetric]);
 
   const loadTree = async () => {
     const data = await fetchLocationTree();
@@ -133,6 +160,11 @@ export default function DashboardPage() {
   const loadWaterStations = async () => {
     const st = await fetchWaterStations();
     setWaterStations(st);
+  };
+
+  const loadSoilStations = async () => {
+    const st = await fetchSoilStations();
+    setSoilStations(st);
   };
 
   const loadAnalytics = async () => {
@@ -223,12 +255,30 @@ export default function DashboardPage() {
     }
   };
 
+  const loadSoilData = async () => {
+    setLoadingSoil(true);
+    try {
+      const [scoreRes, analyticsRes] = await Promise.all([
+        fetchSoilQualityScore(selectedSoilStationId),
+        fetchHistoricalSoilAnalytics(selectedSoilStationId, selectedSoilMetric, selectedDays)
+      ]);
+      setSoilScore(scoreRes);
+      setSoilAnalytics(analyticsRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingSoil(false);
+    }
+  };
+
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
     if (domain === 'air') {
       await Promise.all([loadAnalytics(), loadForecast(), loadEHS(), loadExplanations()]);
-    } else {
+    } else if (domain === 'water') {
       await Promise.all([loadWaterData(), loadWaterForecastData()]);
+    } else {
+      await loadSoilData();
     }
     setIsRefreshing(false);
   };
@@ -248,7 +298,6 @@ export default function DashboardPage() {
         {domain === 'air' ? (
           /* AIR QUALITY DOMAIN DASHBOARD */
           <>
-            {/* 1. Spatial Hierarchy & Control Toolbar */}
             <LocationSelector
               tree={tree}
               selectedLocationId={selectedLocationId}
@@ -259,32 +308,12 @@ export default function DashboardPage() {
               onSelectDays={setSelectedDays}
             />
 
-            {/* 2. Deterministic Environmental Report Banner */}
-            <EnvironmentalSummaryCard
-              explanations={explanations}
-              loading={loadingExplanations}
-            />
-
-            {/* 3. Prioritized Key Findings & Warnings */}
-            <KeyFindingsPanel
-              explanations={explanations}
-              loading={loadingExplanations}
-            />
-
-            {/* 4. Environmental Health Score Gauge */}
-            <EHSGaugeCard
-              ehsData={ehsData}
-              loading={loadingEHS}
-              onOpenMethodology={() => setIsMethodologyOpen(true)}
-            />
-
-            {/* 5. Pollutant Sub-Score Breakdown Cards */}
+            <EnvironmentalSummaryCard explanations={explanations} loading={loadingExplanations} />
+            <KeyFindingsPanel explanations={explanations} loading={loadingExplanations} />
+            <EHSGaugeCard ehsData={ehsData} loading={loadingEHS} onOpenMethodology={() => setIsMethodologyOpen(true)} />
             {ehsData && <SubScoreCards subscores={ehsData.metric_subscores} />}
-
-            {/* 6. Key Metrics Overview */}
             <MetricsOverview analytics={analytics} loading={loadingAnalytics} />
 
-            {/* 7. Forecast Controls */}
             <ForecastControls
               selectedHorizon={selectedHorizon}
               showBaseline={showBaseline}
@@ -300,14 +329,8 @@ export default function DashboardPage() {
               onOpenScorecard={() => setIsScorecardOpen(true)}
             />
 
-            {/* 8. Forecast-Linked EHS Projections Chart */}
-            <EHSForecastChart
-              forecastEHS={forecastEHS}
-              historicalEHS={historicalEHS}
-              loading={loadingEHS}
-            />
+            <EHSForecastChart forecastEHS={forecastEHS} historicalEHS={historicalEHS} loading={loadingEHS} />
 
-            {/* 9. Forecast Chart */}
             <ForecastChart
               forecast={forecast}
               historical={analytics}
@@ -318,33 +341,23 @@ export default function DashboardPage() {
               showCI={showCI}
             />
 
-            {/* 10. Scenario Explanation */}
             <ScenarioExplanationCard />
 
-            {/* 11. Spatial Map & Historical Time-Series */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               <div className="lg:col-span-5 h-[420px] lg:h-auto">
-                <SpatialMap
-                  tree={tree}
-                  selectedLocationId={selectedLocationId}
-                  onSelectStation={setSelectedLocationId}
-                />
+                <SpatialMap tree={tree} selectedLocationId={selectedLocationId} onSelectStation={setSelectedLocationId} />
               </div>
               <div className="lg:col-span-7">
                 <HistoricalAnalyticsChart analytics={analytics} loading={loadingAnalytics} />
               </div>
             </div>
 
-            {/* 12. Seasonality */}
             <SeasonalityChart analytics={analytics} loading={loadingAnalytics} />
-
-            {/* 13. Metric Glossary */}
             {explanations && <MetricGlossaryPanel metrics={explanations.metric_explanations} />}
           </>
-        ) : (
-          /* WATER QUALITY DOMAIN DASHBOARD (Phase 4A & 4B) */
+        ) : domain === 'water' ? (
+          /* WATER QUALITY DOMAIN DASHBOARD */
           <>
-            {/* 1. Water Toolbar Selector */}
             <div className="bg-eco-card border border-eco-border rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-eco-cyan/10 border border-eco-cyan/20 text-eco-cyan">
@@ -357,7 +370,6 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
-                {/* Water Station Selector */}
                 <select
                   value={selectedWaterStationId}
                   onChange={(e) => setSelectedWaterStationId(e.target.value)}
@@ -368,7 +380,6 @@ export default function DashboardPage() {
                   ))}
                 </select>
 
-                {/* Water Metric Selector */}
                 <select
                   value={selectedWaterMetric}
                   onChange={(e) => setSelectedWaterMetric(e.target.value)}
@@ -379,7 +390,6 @@ export default function DashboardPage() {
                   ))}
                 </select>
 
-                {/* Days Window Selector */}
                 <select
                   value={selectedDays}
                   onChange={(e) => setSelectedDays(Number(e.target.value))}
@@ -392,32 +402,12 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* 2. Deterministic Water Environmental Report Banner */}
-            <EnvironmentalSummaryCard
-              explanations={waterExplanations}
-              loading={loadingWaterForecast}
-            />
-
-            {/* 3. Prioritized Key Findings & Warnings */}
-            <KeyFindingsPanel
-              explanations={waterExplanations}
-              loading={loadingWaterForecast}
-            />
-
-            {/* 4. Water Quality Health Score Banner */}
-            <WaterScoreCard
-              waterScore={waterScore}
-              loading={loadingWater}
-              onOpenMethodology={() => setIsWaterStandardsOpen(true)}
-            />
-
-            {/* 5. Water Metric Sub-Score Cards */}
+            <EnvironmentalSummaryCard explanations={waterExplanations} loading={loadingWaterForecast} />
+            <KeyFindingsPanel explanations={waterExplanations} loading={loadingWaterForecast} />
+            <WaterScoreCard waterScore={waterScore} loading={loadingWater} onOpenMethodology={() => setIsWaterStandardsOpen(true)} />
             {waterScore && <WaterSubScoreCards subscores={waterScore.metric_subscores} />}
-
-            {/* 6. Water Key Metrics Summary Overview */}
             <MetricsOverview analytics={waterAnalytics} loading={loadingWater} />
 
-            {/* 7. Water Forecast Controls */}
             <WaterForecastControls
               selectedHorizon={selectedHorizon}
               showBaseline={showBaseline}
@@ -433,13 +423,8 @@ export default function DashboardPage() {
               onOpenScorecard={() => setIsScorecardOpen(true)}
             />
 
-            {/* 8. Forecast-Linked Water Quality Score Projections Chart (0-100) */}
-            <WaterScoreForecastChart
-              forecastScore={waterForecastScore}
-              loading={loadingWaterForecast}
-            />
+            <WaterScoreForecastChart forecastScore={waterForecastScore} loading={loadingWaterForecast} />
 
-            {/* 9. Water Concentration Scenario Forecast Chart */}
             <ForecastChart
               forecast={waterForecast}
               historical={waterAnalytics}
@@ -450,16 +435,82 @@ export default function DashboardPage() {
               showCI={showCI}
             />
 
-            {/* 10. Forecast Scenario Definitions & Caveats */}
             <ScenarioExplanationCard />
 
-            {/* 11. Historical Water Analytics Time-Series Chart */}
             <div className="bg-eco-card border border-eco-border rounded-2xl p-6 shadow-lg">
               <HistoricalAnalyticsChart analytics={waterAnalytics} loading={loadingWater} />
             </div>
 
-            {/* 12. Plain-Language Water Scientific Glossary */}
             <WaterGlossaryPanel />
+          </>
+        ) : (
+          /* SOIL QUALITY DOMAIN DASHBOARD (Phase 5A) */
+          <>
+            {/* 1. Soil Toolbar Selector */}
+            <div className="bg-eco-card border border-eco-border rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-eco-amber/10 border border-eco-amber/20 text-eco-amber">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-eco-text">Soil Sampling Site Selector</h2>
+                  <p className="text-xs text-eco-muted">Phase 5A · Soil & Land Quality Intelligence Pipeline</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                {/* Soil Station Selector */}
+                <select
+                  value={selectedSoilStationId}
+                  onChange={(e) => setSelectedSoilStationId(e.target.value)}
+                  className="bg-eco-bg border border-eco-border text-eco-text rounded-xl px-3 py-2 focus:outline-none focus:border-eco-amber font-sans"
+                >
+                  {soilStations.map((st) => (
+                    <option key={st.id} value={st.id}>{st.name}</option>
+                  ))}
+                </select>
+
+                {/* Soil Metric Selector */}
+                <select
+                  value={selectedSoilMetric}
+                  onChange={(e) => setSelectedSoilMetric(e.target.value)}
+                  className="bg-eco-bg border border-eco-border text-eco-text rounded-xl px-3 py-2 focus:outline-none focus:border-eco-amber font-mono"
+                >
+                  {['SOC', 'pH', 'Pb', 'Cd', 'As', 'Hg', 'Cr', 'TPH', 'EC', 'Moisture'].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Spatial Limitation Banner */}
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-xs text-amber-300 flex items-center gap-3">
+              <Database className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <div>
+                <strong className="text-amber-200">Spatial Data Provenance Notice:</strong> Sampling point core assays (USGS WQP) represent physical localized field samples and do not imply uniform soil contamination across an entire state or region. SoilGrids 250m predictions are modeled estimates based on spatial machine learning.
+              </div>
+            </div>
+
+            {/* 2. Soil Quality Score Banner */}
+            <SoilScoreCard
+              soilScore={soilScore}
+              loading={loadingSoil}
+              onOpenMethodology={() => setIsSoilStandardsOpen(true)}
+            />
+
+            {/* 3. Soil Metric Sub-Score Cards */}
+            {soilScore && <SoilSubScoreCards subscores={soilScore.metric_subscores} />}
+
+            {/* 4. Soil Key Metrics Summary Overview */}
+            <MetricsOverview analytics={soilAnalytics} loading={loadingSoil} />
+
+            {/* 5. Historical Soil Analytics Time-Series Chart */}
+            <div className="bg-eco-card border border-eco-border rounded-2xl p-6 shadow-lg">
+              <HistoricalAnalyticsChart analytics={soilAnalytics} loading={loadingSoil} />
+            </div>
+
+            {/* 6. Plain-Language Soil Scientific Glossary */}
+            <SoilGlossaryPanel />
           </>
         )}
 
@@ -468,7 +519,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 4B · <strong className="text-eco-text">Water Quality Historical Analytics & Forecasting Engine</strong>
+              EcoTrend Phase 5A · <strong className="text-eco-text">Soil & Land Quality Intelligence Pipeline</strong>
             </span>
           </div>
 
@@ -484,7 +535,7 @@ export default function DashboardPage() {
       <DataAuditDrawer
         isOpen={isAuditOpen}
         onClose={() => setIsAuditOpen(false)}
-        selectedLocationId={domain === 'air' ? selectedLocationId : selectedWaterStationId}
+        selectedLocationId={domain === 'air' ? selectedLocationId : domain === 'water' ? selectedWaterStationId : selectedSoilStationId}
       />
 
       <BacktestScorecardDrawer
@@ -501,6 +552,11 @@ export default function DashboardPage() {
       <WaterStandardsModal
         isOpen={isWaterStandardsOpen}
         onClose={() => setIsWaterStandardsOpen(false)}
+      />
+
+      <SoilStandardsModal
+        isOpen={isSoilStandardsOpen}
+        onClose={() => setIsSoilStandardsOpen(false)}
       />
     </div>
   );

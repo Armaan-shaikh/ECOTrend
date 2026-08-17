@@ -1,4 +1,4 @@
-export type EnvironmentalDomain = 'air' | 'water';
+export type EnvironmentalDomain = 'air' | 'water' | 'soil';
 
 export interface LocationItem {
   id: string;
@@ -136,11 +136,13 @@ export interface ForecastProjectionResponse {
 
 export interface MetricSubScore {
   metric: string;
+  title?: string;
   raw_value?: number | null;
   unit: string;
   score: number;
   category: string;
   standard: string;
+  reference_type?: string;
   weight: number;
   is_available: boolean;
   contribution_pct: number;
@@ -200,6 +202,7 @@ export interface StandardsInfoResponse {
     attribution_notice: string;
     last_updated: string;
   };
+  reference_types?: Record<string, string>;
   standards: Record<string, {
     metric: string;
     unit: string;
@@ -208,6 +211,7 @@ export interface StandardsInfoResponse {
     epa_good?: number;
     epa_moderate?: number;
     standard_reference: string;
+    reference_type?: string;
     weight: number;
     weight_rationale: string;
   }>;
@@ -277,4 +281,25 @@ export interface ForecastWaterScoreResponse {
   metric: string;
   horizon: string;
   projections: ForecastWaterScorePoint[];
+}
+
+export interface SoilQualityScoreResponse {
+  overall_soil_score: number;
+  category: string;
+  color: string;
+  health_impact: string;
+  data_coverage_percent: number;
+  primary_soil_driver: string;
+  data_type: string;
+  source_provenance: string;
+  explanation: string;
+  metric_subscores: MetricSubScore[];
+  reference_types: Record<string, string>;
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
 }
