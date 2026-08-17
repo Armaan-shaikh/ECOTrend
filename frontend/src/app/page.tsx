@@ -55,6 +55,10 @@ import { ComplianceAlertsPanel } from '../components/ComplianceAlertsPanel';
 import { EnvironmentalRiskMatrix } from '../components/EnvironmentalRiskMatrix';
 import { EHSReportExportModal } from '../components/EHSReportExportModal';
 
+// Observability & Operations Components (Phase 11)
+import { ObservabilityDashboardCard } from '../components/ObservabilityDashboardCard';
+import { OperationalAlertsModal } from '../components/OperationalAlertsModal';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -86,7 +90,9 @@ import {
   fetchMultiDomainOverview,
   fetchCrossDomainCorrelations,
   fetchDomainComparison,
-  fetchComplianceAlerts
+  fetchComplianceAlerts,
+  fetchObservabilityOverview,
+  fetchOperationalAlerts
 } from '../lib/api';
 
 import {
@@ -108,7 +114,9 @@ import {
   MultiDomainOverviewResponse,
   CrossDomainCorrelationResponse,
   DomainComparisonResponse,
-  ComplianceOverviewResponse
+  ComplianceOverviewResponse,
+  ObservabilityOverviewResponse,
+  OperationalAlertItem
 } from '../lib/types';
 
 import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2, Globe } from 'lucide-react';
@@ -175,6 +183,10 @@ export default function DashboardPage() {
   // Compliance & Risk Data State (Phase 9)
   const [complianceData, setComplianceData] = useState<ComplianceOverviewResponse | null>(null);
 
+  // Observability & Reliability Data State (Phase 11)
+  const [obsOverview, setObsOverview] = useState<ObservabilityOverviewResponse | null>(null);
+  const [operationalAlerts, setOperationalAlerts] = useState<OperationalAlertItem[]>([]);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
@@ -185,6 +197,7 @@ export default function DashboardPage() {
   const [loadingClimate, setLoadingClimate] = useState<boolean>(true);
   const [loadingNoise, setLoadingNoise] = useState<boolean>(true);
   const [loadingMultiDomain, setLoadingMultiDomain] = useState<boolean>(true);
+  const [loadingObs, setLoadingObs] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -202,6 +215,7 @@ export default function DashboardPage() {
   const [isClimateStandardsOpen, setIsClimateStandardsOpen] = useState<boolean>(false);
   const [isNoiseStandardsOpen, setIsNoiseStandardsOpen] = useState<boolean>(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -213,6 +227,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadComplianceData();
+    loadObservabilityData();
 
     if (domain === 'overview') {
       loadMultiDomainData();
@@ -264,6 +279,22 @@ export default function DashboardPage() {
       setComplianceData(data);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const loadObservabilityData = async () => {
+    setLoadingObs(true);
+    try {
+      const [ovRes, altRes] = await Promise.all([
+        fetchObservabilityOverview(),
+        fetchOperationalAlerts()
+      ]);
+      setObsOverview(ovRes);
+      setOperationalAlerts(altRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingObs(false);
     }
   };
 
@@ -425,7 +456,7 @@ export default function DashboardPage() {
 
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    await loadComplianceData();
+    await Promise.all([loadComplianceData(), loadObservabilityData()]);
 
     if (domain === 'overview') {
       await loadMultiDomainData();
@@ -445,18 +476,26 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-eco-bg flex flex-col font-sans">
-      {/* Top Navigation Bar with Domain Switcher */}
+      {/* Top Navigation Bar with Domain Switcher & Ops Controls */}
       <Header
         domain={domain}
         onSelectDomain={setDomain}
         onRefresh={handleRefreshPipeline}
         onOpenAudit={() => setIsAuditOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        onOpenObservabilityModal={() => setIsAlertsModalOpen(true)}
         isRefreshing={isRefreshing}
       />
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Phase 9: Active Environmental Risk Matrix & Compliance Alerts Banner */}
+        {/* Phase 11: Real-time Platform Observability & Source Reliability Card */}
+        <ObservabilityDashboardCard
+          overview={obsOverview}
+          loading={loadingObs}
+          onOpenAlertsModal={() => setIsAlertsModalOpen(true)}
+        />
+
+        {/* Phase 9: Environmental Risk Matrix */}
         {complianceData && (
           <EnvironmentalRiskMatrix riskAssessment={complianceData.risk_assessment} />
         )}
@@ -773,7 +812,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 9 · <strong className="text-eco-text">Standards & Guidelines Compliance Engine</strong>
+              EcoTrend Phase 11 · <strong className="text-eco-text">Observability & Data Operations Platform</strong>
             </span>
           </div>
 
@@ -827,6 +866,13 @@ export default function DashboardPage() {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         locationId={selectedLocationId}
+      />
+
+      <OperationalAlertsModal
+        isOpen={isAlertsModalOpen}
+        onClose={() => setIsAlertsModalOpen(false)}
+        alerts={operationalAlerts}
+        onRefreshAlerts={loadObservabilityData}
       />
     </div>
   );

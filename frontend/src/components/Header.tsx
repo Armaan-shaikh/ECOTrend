@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText } from 'lucide-react';
+import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu } from 'lucide-react';
 import { EnvironmentalDomain } from '../lib/types';
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   onRefresh: () => void;
   onOpenAudit: () => void;
   onOpenReportModal: () => void;
+  onOpenObservabilityModal: () => void;
   isRefreshing: boolean;
 }
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   onOpenAudit,
   onOpenReportModal,
+  onOpenObservabilityModal,
   isRefreshing,
 }) => {
   return (
@@ -32,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-eco-text">EcoTrend</h1>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 9 · EHS Compliance
+                Phase 11 · Reliability Ops
               </span>
             </div>
             <p className="text-xs text-eco-muted font-medium">
@@ -118,6 +120,14 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenObservabilityModal}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-eco-bg hover:bg-eco-hover border border-eco-border text-xs font-semibold text-emerald-400 transition"
+        >
+          <Cpu className="w-4 h-4" />
+          <span>System Ops</span>
+        </button>
+
         <button
           onClick={onOpenReportModal}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-eco-bg hover:bg-eco-hover border border-eco-border text-xs font-semibold text-eco-cyan transition"

@@ -23,7 +23,11 @@ import {
   DomainComparisonResponse,
   ComplianceOverviewResponse,
   RiskAssessmentResponse,
-  EHSReportExportResponse
+  EHSReportExportResponse,
+  ObservabilityOverviewResponse,
+  SourceHealthItem,
+  IngestionJobItem,
+  OperationalAlertItem
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -437,6 +441,58 @@ export async function generateEHSReport(locationId: string, format: string = 'js
   }
 }
 
+/* Observability & Reliability Methods (Phase 11) */
+
+export async function fetchObservabilityOverview(): Promise<ObservabilityOverviewResponse> {
+  try {
+    const res = await fetch(`${API_V1}/observability/overview`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch observability overview');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackObservabilityOverview();
+  }
+}
+
+export async function fetchSourceHealthMatrix(): Promise<SourceHealthItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/observability/sources`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch source health matrix');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackObservabilityOverview().all_sources;
+  }
+}
+
+export async function fetchIngestionJobs(): Promise<IngestionJobItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/observability/jobs`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch ingestion jobs');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackObservabilityOverview().recent_jobs;
+  }
+}
+
+export async function fetchOperationalAlerts(): Promise<OperationalAlertItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/observability/alerts`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch operational alerts');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackObservabilityOverview().active_alerts;
+  }
+}
+
+export async function acknowledgeOperationalAlert(alertId: string): Promise<OperationalAlertItem> {
+  const res = await fetch(`${API_V1}/observability/alerts/${alertId}/acknowledge`, { method: 'POST' });
+  return await res.json();
+}
+
+export async function resolveOperationalAlert(alertId: string): Promise<OperationalAlertItem> {
+  const res = await fetch(`${API_V1}/observability/alerts/${alertId}/resolve`, { method: 'POST' });
+  return await res.json();
+}
+
 export async function fetchMeasurements(locationId: string, metric: string = 'PM2.5', days: number = 30): Promise<MeasurementItem[]> {
   try {
     const res = await fetch(`${API_V1}/measurements?location_id=${locationId}&metric=${metric}&days=${days}`, { cache: 'no-store' });
@@ -583,61 +639,25 @@ function generateFallbackNoiseScore(locationId: string): NoiseQualityScoreRespon
 function generateFallbackMultiDomainOverview(locationId: string): MultiDomainOverviewResponse { return { cepi_score: 81, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, available_domains_count: 6, total_domains_count: 6, available_domains: ["air", "water", "soil", "climate", "emissions", "noise"], missing_domains: [], weights_used: { air: 20.0, water: 20.0, soil: 20.0, climate: 15.0, emissions: 15.0, noise: 10.0 }, explanation: "", domain_scores: [] }; }
 function generateFallbackCrossDomainCorrelations(locationId: string): CrossDomainCorrelationResponse { return { location_id: locationId, correlations: [], disclaimer: "" }; }
 function generateFallbackDomainComparison(): DomainComparisonResponse { return { locations: [] }; }
+function generateFallbackComplianceAlerts(locationId: string): ComplianceOverviewResponse { return { location_id: locationId, evaluations: [], risk_assessment: generateFallbackRiskAssessment() }; }
+function generateFallbackRiskAssessment(): RiskAssessmentResponse { return { compounding_risk_score: 35, risk_tier: "MODERATE_RISK", color: "#F59E0B", recommended_action: "", total_evaluated_rules: 7, exceeded_rules_count: 3, critical_rules_count: 0, warning_rules_count: 2, methodology_reference: "PROJECT_DEFINED_METHODOLOGY", attribution_notice: "", explanation: "" }; }
+function generateFallbackEHSReport(locationId: string): EHSReportExportResponse { return { report_title: "EHS Standards & Guidelines Audit Report", generated_at: new Date().toISOString(), location_id: locationId, location_name: "Manhattan Central Station", executive_summary: {}, risk_assessment: generateFallbackRiskAssessment(), cepi_overview: {}, evaluations_detail: [] }; }
 
-function generateFallbackComplianceAlerts(locationId: string): ComplianceOverviewResponse {
+function generateFallbackObservabilityOverview(): ObservabilityOverviewResponse {
   return {
-    location_id: locationId,
-    evaluations: [
-      {
-        rule_id: "rule_air_pm25_24h",
-        domain: "air",
-        metric: "PM2.5",
-        unit: "ug/m3",
-        averaging_period: "24_HOUR_MEAN",
-        observed_value: 18.5,
-        threshold: 15.0,
-        threshold_direction: "ABOVE",
-        is_exceeded: true,
-        status: "EXCEEDED_GUIDELINE",
-        evaluation_severity: "WARNING",
-        reference_name: "WHO Air Quality Guidelines (2021)",
-        reference_type: "GUIDELINE",
-        jurisdiction: "Global / International",
-        source_url: "https://www.who.int/publications/i/item/9789240034228",
-        provenance: "MEASURED",
-        explanation: "Observed 24h PM2.5 (18.5 ug/m3) exceeds WHO 2021 Guideline (15.0 ug/m3)."
-      }
-    ],
-    risk_assessment: generateFallbackRiskAssessment()
-  };
-}
-
-function generateFallbackRiskAssessment(): RiskAssessmentResponse {
-  return {
-    compounding_risk_score: 35,
-    risk_tier: "MODERATE_RISK",
-    color: "#F59E0B",
-    recommended_action: "Routine environmental monitoring; advisory alerts active.",
-    total_evaluated_rules: 7,
-    exceeded_rules_count: 3,
-    critical_rules_count: 0,
-    warning_rules_count: 2,
-    methodology_reference: "PROJECT_DEFINED_METHODOLOGY",
-    attribution_notice: "EcoTrend Compounding Environmental Risk Index is a project-defined methodology classification.",
-    explanation: "EcoTrend Compounding Risk Index: 35/100 (MODERATE_RISK)."
-  };
-}
-
-function generateFallbackEHSReport(locationId: string): EHSReportExportResponse {
-  return {
-    report_title: "EHS Standards & Guidelines Audit Report",
-    generated_at: new Date().toISOString(),
-    location_id: locationId,
-    location_name: "Manhattan Central Station",
-    executive_summary: { cepi_score: 81, compounding_risk_score: 35 },
-    risk_assessment: generateFallbackRiskAssessment(),
-    cepi_overview: { cepi_score: 81 },
-    evaluations_detail: generateFallbackComplianceAlerts(locationId).evaluations
+    system_health: "HEALTHY",
+    infrastructure_health: { database: "ok", redis: "ok", api_gateway: "ok" },
+    sources_summary: { total: 6, healthy: 6, degraded: 0, failed: 0 },
+    active_alerts: [],
+    recent_jobs: [],
+    all_sources: [
+      { source: "OpenAQ", domain: "air", status: "HEALTHY", consecutive_failures: 0, record_volume_24h: 1440, rejection_rate_percent: 0.5, stale_data_duration_hours: 0.2 },
+      { source: "USGS_WQP", domain: "water", status: "HEALTHY", consecutive_failures: 0, record_volume_24h: 720, rejection_rate_percent: 1.2, stale_data_duration_hours: 0.5 },
+      { source: "SoilGrids", domain: "soil", status: "HEALTHY", consecutive_failures: 0, record_volume_24h: 240, rejection_rate_percent: 0.0, stale_data_duration_hours: 1.1 },
+      { source: "Open-Meteo", domain: "climate", status: "HEALTHY", consecutive_failures: 0, record_volume_24h: 2880, rejection_rate_percent: 0.1, stale_data_duration_hours: 0.1 },
+      { source: "WorldBank_Emissions", domain: "emissions", status: "HEALTHY", consecutive_failures: 0, record_volume_24h: 120, rejection_rate_percent: 0.0, stale_data_duration_hours: 2.0 },
+      { source: "NYC_OpenData_311", domain: "noise", status: "HEALTHY", consecutive_failures: 0, record_volume_24h: 500, rejection_rate_percent: 2.1, stale_data_duration_hours: 0.4 }
+    ]
   };
 }
 

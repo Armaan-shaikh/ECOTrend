@@ -473,8 +473,75 @@ export interface EHSReportExportResponse {
   location_id: string;
   location_name: string;
   executive_summary: Record<string, any>;
-  risk_assessment: Record<string, any>;
+  risk_assessment: RiskAssessmentResponse;
   cepi_overview: Record<string, any>;
   evaluations_detail: ComplianceEvaluationItem[];
-  markdown_content?: string | null;
+  markdown_content?: string;
+}
+
+export interface IngestionJobItem {
+  id: string;
+  source: string;
+  domain: string;
+  location_id?: string | null;
+  status: string;
+  started_at: string;
+  completed_at?: string | null;
+  records_fetched: number;
+  records_valid: number;
+  records_rejected: number;
+  error_count: number;
+  duration_ms?: number | null;
+  provenance: string;
+  error_details?: string | null;
+}
+
+export interface SourceHealthItem {
+  id?: string | null;
+  source: string;
+  domain: string;
+  status: string;
+  last_successful_ingestion?: string | null;
+  last_attempted_ingestion?: string | null;
+  consecutive_failures: number;
+  latency_ms?: number | null;
+  record_volume_24h: number;
+  rejection_rate_percent: number;
+  stale_data_duration_hours: number;
+  updated_at?: string | null;
+}
+
+export interface OperationalAlertItem {
+  id: string;
+  source: string;
+  domain: string;
+  severity: string;
+  condition: string;
+  observed_value: string;
+  expected_condition: string;
+  status: string;
+  detected_at: string;
+  resolved_at?: string | null;
+  provenance_context?: string | null;
+}
+
+export interface ObservabilityMetricsResponse {
+  system_status: string;
+  database_status: string;
+  redis_status: string;
+  total_ingestion_jobs_24h: number;
+  successful_jobs_24h: number;
+  failed_jobs_24h: number;
+  active_alerts_count: number;
+  healthy_sources_count: number;
+  total_sources_count: number;
+}
+
+export interface ObservabilityOverviewResponse {
+  system_health: string;
+  infrastructure_health: Record<string, string>;
+  sources_summary: Record<string, number>;
+  active_alerts: OperationalAlertItem[];
+  recent_jobs: IngestionJobItem[];
+  all_sources: SourceHealthItem[];
 }
