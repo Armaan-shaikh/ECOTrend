@@ -260,3 +260,21 @@ export interface WaterQualityScoreResponse {
     last_updated: string;
   };
 }
+
+export interface ForecastWaterScorePoint {
+  date: string;
+  timestamp: string;
+  baseline_water_score: number;
+  baseline_category: string;
+  improvement_water_score: number;
+  worsening_water_score: number;
+  water_score_ci_95_lower: number;
+  water_score_ci_95_upper: number;
+}
+
+export interface ForecastWaterScoreResponse {
+  location_id: string;
+  metric: string;
+  horizon: string;
+  projections: ForecastWaterScorePoint[];
+}

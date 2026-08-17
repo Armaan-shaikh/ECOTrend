@@ -20,6 +20,8 @@ import { WaterScoreCard } from '../components/WaterScoreCard';
 import { WaterSubScoreCards } from '../components/WaterSubScoreCards';
 import { WaterGlossaryPanel } from '../components/WaterGlossaryPanel';
 import { WaterStandardsModal } from '../components/WaterStandardsModal';
+import { WaterScoreForecastChart } from '../components/WaterScoreForecastChart';
+import { WaterForecastControls } from '../components/WaterForecastControls';
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -34,7 +36,10 @@ import {
   fetchLocationExplanations,
   fetchWaterStations,
   fetchWaterQualityScore,
-  fetchHistoricalWaterAnalytics
+  fetchHistoricalWaterAnalytics,
+  fetchWaterForecastProjections,
+  fetchWaterForecastScore,
+  fetchWaterExplanations
 } from '../lib/api';
 
 import {
@@ -47,7 +52,8 @@ import {
   HistoricalEHSPoint,
   ForecastEHSResponse,
   LocationExplanationResponse,
-  WaterQualityScoreResponse
+  WaterQualityScoreResponse,
+  ForecastWaterScoreResponse
 } from '../lib/types';
 
 import { Shield, Layers, Droplet, Wind } from 'lucide-react';
@@ -67,7 +73,7 @@ export default function DashboardPage() {
   const [selectedWaterStationId, setSelectedWaterStationId] = useState<string>('loc_us_ny_hudson');
   const [selectedWaterMetric, setSelectedWaterMetric] = useState<string>('DO');
 
-  // Data States
+  // Air Data States
   const [analytics, setAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
   const [forecast, setForecast] = useState<ForecastProjectionResponse | null>(null);
   const [ehsData, setEhsData] = useState<AggregateEHSResponse | null>(null);
@@ -75,15 +81,19 @@ export default function DashboardPage() {
   const [forecastEHS, setForecastEHS] = useState<ForecastEHSResponse | null>(null);
   const [explanations, setExplanations] = useState<LocationExplanationResponse | null>(null);
 
-  // Water Data States
+  // Water Data States (Phase 4A & 4B)
   const [waterScore, setWaterScore] = useState<WaterQualityScoreResponse | null>(null);
   const [waterAnalytics, setWaterAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
+  const [waterForecast, setWaterForecast] = useState<ForecastProjectionResponse | null>(null);
+  const [waterForecastScore, setWaterForecastScore] = useState<ForecastWaterScoreResponse | null>(null);
+  const [waterExplanations, setWaterExplanations] = useState<LocationExplanationResponse | null>(null);
 
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
   const [loadingExplanations, setLoadingExplanations] = useState<boolean>(true);
   const [loadingWater, setLoadingWater] = useState<boolean>(true);
+  const [loadingWaterForecast, setLoadingWaterForecast] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -111,6 +121,7 @@ export default function DashboardPage() {
       loadExplanations();
     } else {
       loadWaterData();
+      loadWaterForecastData();
     }
   }, [domain, selectedLocationId, selectedMetric, selectedDays, selectedHorizon, selectedWaterStationId, selectedWaterMetric]);
 
@@ -194,12 +205,30 @@ export default function DashboardPage() {
     }
   };
 
+  const loadWaterForecastData = async () => {
+    setLoadingWaterForecast(true);
+    try {
+      const [foreRes, scoreRes, expRes] = await Promise.all([
+        fetchWaterForecastProjections(selectedWaterStationId, selectedWaterMetric, selectedHorizon),
+        fetchWaterForecastScore(selectedWaterStationId, selectedWaterMetric, selectedHorizon),
+        fetchWaterExplanations(selectedWaterStationId, selectedWaterMetric, selectedDays, selectedHorizon)
+      ]);
+      setWaterForecast(foreRes);
+      setWaterForecastScore(scoreRes);
+      setWaterExplanations(expRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingWaterForecast(false);
+    }
+  };
+
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
     if (domain === 'air') {
       await Promise.all([loadAnalytics(), loadForecast(), loadEHS(), loadExplanations()]);
     } else {
-      await loadWaterData();
+      await Promise.all([loadWaterData(), loadWaterForecastData()]);
     }
     setIsRefreshing(false);
   };
@@ -313,7 +342,7 @@ export default function DashboardPage() {
             {explanations && <MetricGlossaryPanel metrics={explanations.metric_explanations} />}
           </>
         ) : (
-          /* WATER QUALITY DOMAIN DASHBOARD (Phase 4A) */
+          /* WATER QUALITY DOMAIN DASHBOARD (Phase 4A & 4B) */
           <>
             {/* 1. Water Toolbar Selector */}
             <div className="bg-eco-card border border-eco-border rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
@@ -323,7 +352,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-eco-text">Freshwater Station Selector</h2>
-                  <p className="text-xs text-eco-muted">Phase 4A · Water Quality Intelligence Pipeline</p>
+                  <p className="text-xs text-eco-muted">Phase 4B · Water Quality Analytics & Forecasting Engine</p>
                 </div>
               </div>
 
@@ -363,25 +392,73 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* 2. Water Quality Health Score Banner */}
+            {/* 2. Deterministic Water Environmental Report Banner */}
+            <EnvironmentalSummaryCard
+              explanations={waterExplanations}
+              loading={loadingWaterForecast}
+            />
+
+            {/* 3. Prioritized Key Findings & Warnings */}
+            <KeyFindingsPanel
+              explanations={waterExplanations}
+              loading={loadingWaterForecast}
+            />
+
+            {/* 4. Water Quality Health Score Banner */}
             <WaterScoreCard
               waterScore={waterScore}
               loading={loadingWater}
               onOpenMethodology={() => setIsWaterStandardsOpen(true)}
             />
 
-            {/* 3. Water Metric Sub-Score Cards */}
+            {/* 5. Water Metric Sub-Score Cards */}
             {waterScore && <WaterSubScoreCards subscores={waterScore.metric_subscores} />}
 
-            {/* 4. Water Key Metrics Summary Overview */}
+            {/* 6. Water Key Metrics Summary Overview */}
             <MetricsOverview analytics={waterAnalytics} loading={loadingWater} />
 
-            {/* 5. Historical Water Analytics Time-Series Chart */}
+            {/* 7. Water Forecast Controls */}
+            <WaterForecastControls
+              selectedHorizon={selectedHorizon}
+              showBaseline={showBaseline}
+              showImprovement={showImprovement}
+              showWorsening={showWorsening}
+              showCI={showCI}
+              championModel={waterForecast?.champion_model || 'Model Competition'}
+              onSelectHorizon={setSelectedHorizon}
+              onToggleBaseline={() => setShowBaseline(!showBaseline)}
+              onToggleImprovement={() => setShowImprovement(!showImprovement)}
+              onToggleWorsening={() => setShowWorsening(!showWorsening)}
+              onToggleCI={() => setShowCI(!showCI)}
+              onOpenScorecard={() => setIsScorecardOpen(true)}
+            />
+
+            {/* 8. Forecast-Linked Water Quality Score Projections Chart (0-100) */}
+            <WaterScoreForecastChart
+              forecastScore={waterForecastScore}
+              loading={loadingWaterForecast}
+            />
+
+            {/* 9. Water Concentration Scenario Forecast Chart */}
+            <ForecastChart
+              forecast={waterForecast}
+              historical={waterAnalytics}
+              loading={loadingWaterForecast}
+              showBaseline={showBaseline}
+              showImprovement={showImprovement}
+              showWorsening={showWorsening}
+              showCI={showCI}
+            />
+
+            {/* 10. Forecast Scenario Definitions & Caveats */}
+            <ScenarioExplanationCard />
+
+            {/* 11. Historical Water Analytics Time-Series Chart */}
             <div className="bg-eco-card border border-eco-border rounded-2xl p-6 shadow-lg">
               <HistoricalAnalyticsChart analytics={waterAnalytics} loading={loadingWater} />
             </div>
 
-            {/* 6. Plain-Language Water Scientific Glossary */}
+            {/* 12. Plain-Language Water Scientific Glossary */}
             <WaterGlossaryPanel />
           </>
         )}
@@ -391,7 +468,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 4A · <strong className="text-eco-text">Water Quality Intelligence Pipeline (WHO & EPA Standards)</strong>
+              EcoTrend Phase 4B · <strong className="text-eco-text">Water Quality Historical Analytics & Forecasting Engine</strong>
             </span>
           </div>
 
@@ -413,7 +490,7 @@ export default function DashboardPage() {
       <BacktestScorecardDrawer
         isOpen={isScorecardOpen}
         onClose={() => setIsScorecardOpen(false)}
-        forecast={forecast}
+        forecast={domain === 'air' ? forecast : waterForecast}
       />
 
       <EHSMethodologyModal

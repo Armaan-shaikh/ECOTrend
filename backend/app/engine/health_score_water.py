@@ -5,7 +5,7 @@ class WaterHealthScoringEngine:
     """
     Water Quality Health Scoring Engine (EcoTrend Water Methodology v1.0):
     Calculates sub-scores (0-100) for DO, BOD, COD, TDS, pH, Turbidity, Temp, Conductivity,
-    tracks data coverage, and computes weighted aggregate Water Quality Score.
+    tracks data coverage, computes weighted aggregate Water Quality Score, and converts scenario forecasts into projected Water Scores.
     """
 
     @staticmethod
@@ -154,3 +154,34 @@ class WaterHealthScoringEngine:
             "metric_subscores": subscores,
             "methodology": WATER_METHODOLOGY_METADATA
         }
+
+    @staticmethod
+    def convert_forecast_to_water_score(forecast_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        metric = forecast_data.get("metric", "DO")
+        unit = forecast_data.get("unit", "mg/L")
+        projections = forecast_data.get("projections", [])
+
+        score_projections = []
+        for p in projections:
+            b_sub = WaterHealthScoringEngine.compute_metric_subscore(metric, p["baseline_value"], unit)
+            i_sub = WaterHealthScoringEngine.compute_metric_subscore(metric, p["improvement_value"], unit)
+            w_sub = WaterHealthScoringEngine.compute_metric_subscore(metric, p["worsening_value"], unit)
+            ci_l_sub = WaterHealthScoringEngine.compute_metric_subscore(metric, p["ci_95_lower"], unit)
+            ci_u_sub = WaterHealthScoringEngine.compute_metric_subscore(metric, p["ci_95_upper"], unit)
+
+            # Score CI lower/upper
+            score_ci_lower = min(ci_l_sub["score"], ci_u_sub["score"])
+            score_ci_upper = max(ci_l_sub["score"], ci_u_sub["score"])
+
+            score_projections.append({
+                "date": p["date"],
+                "timestamp": p["timestamp"],
+                "baseline_water_score": b_sub["score"],
+                "baseline_category": b_sub["category"],
+                "improvement_water_score": i_sub["score"],
+                "worsening_water_score": w_sub["score"],
+                "water_score_ci_95_lower": score_ci_lower,
+                "water_score_ci_95_upper": score_ci_upper
+            })
+
+        return score_projections

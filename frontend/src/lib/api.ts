@@ -11,7 +11,9 @@ import {
   ForecastEHSResponse,
   StandardsInfoResponse,
   LocationExplanationResponse,
-  WaterQualityScoreResponse
+  WaterQualityScoreResponse,
+  ForecastWaterScorePoint,
+  ForecastWaterScoreResponse
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -125,7 +127,7 @@ export async function fetchLocationExplanations(
   }
 }
 
-/* Water Quality API Methods (Phase 4A) */
+/* Water Quality API Methods (Phase 4A & 4B) */
 
 export async function fetchWaterStations(): Promise<LocationItem[]> {
   try {
@@ -158,6 +160,36 @@ export async function fetchHistoricalWaterAnalytics(locationId: string, metric: 
     return await res.json();
   } catch (err) {
     return generateFallbackWaterAnalytics(locationId, metric, days);
+  }
+}
+
+export async function fetchWaterForecastProjections(locationId: string, metric: string = 'DO', horizon: string = '1_YEAR'): Promise<ForecastProjectionResponse> {
+  try {
+    const res = await fetch(`${API_V1}/water/forecast/projections?location_id=${locationId}&metric=${metric}&horizon=${horizon}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch water forecast projections');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackWaterForecast(locationId, metric, horizon);
+  }
+}
+
+export async function fetchWaterForecastScore(locationId: string, metric: string = 'DO', horizon: string = '1_YEAR'): Promise<ForecastWaterScoreResponse> {
+  try {
+    const res = await fetch(`${API_V1}/water/forecast/score?location_id=${locationId}&metric=${metric}&horizon=${horizon}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch water forecast score');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackWaterForecastScore(locationId, metric, horizon);
+  }
+}
+
+export async function fetchWaterExplanations(locationId: string, metric: string = 'DO', days: number = 90, horizon: string = '1_YEAR'): Promise<LocationExplanationResponse> {
+  try {
+    const res = await fetch(`${API_V1}/water/explanations?location_id=${locationId}&metric=${metric}&days=${days}&horizon=${horizon}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch water explanations');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackExplanations(locationId, metric, horizon);
   }
 }
 
@@ -427,6 +459,87 @@ function generateFallbackForecast(locationId: string, metric: string, horizon: s
       { model_name: 'Holt-Winters Exponential Smoothing', rmse: 4.15, mae: 3.10, mape_percent: 13.8, r_squared: 0.78, is_champion: false },
       { model_name: 'Linear Harmonic Extrapolation', rmse: 4.89, mae: 3.65, mape_percent: 16.4, r_squared: 0.71, is_champion: false }
     ],
+    projections
+  };
+}
+
+function generateFallbackWaterForecast(locationId: string, metric: string, horizon: string): ForecastProjectionResponse {
+  const horizonDays = horizon === '6_MONTHS' ? 182 : (horizon === '3_YEARS' ? 1095 : (horizon === '5_YEARS' ? 1825 : 365));
+  const isPolluted = locationId.includes('yamuna');
+  const baseVal = metric === 'DO' ? (isPolluted ? 3.2 : 7.8) : (metric === 'BOD' ? (isPolluted ? 18.5 : 2.1) : 7.2);
+  const unit = metric === 'pH' ? 'dimensionless' : (metric === 'Turbidity' ? 'NTU' : (metric === 'Conductivity' ? 'µS/cm' : (metric === 'Temp' ? '°C' : 'mg/L')));
+
+  const projections = [];
+  const startDt = new Date();
+  const stepDays = Math.max(1, Math.floor(horizonDays / 40));
+
+  for (let i = 1; i <= horizonDays; i += stepDays) {
+    const d = new Date(startDt.getTime() + i * 86400000);
+    const tRatio = i / horizonDays;
+    const bVal = baseVal + Math.sin(i / 15) * 0.4;
+
+    projections.push({
+      timestamp: d.toISOString(),
+      date: d.toISOString().split('T')[0],
+      baseline_value: Number(bVal.toFixed(2)),
+      improvement_value: Number((metric === 'DO' ? bVal * (1 + 0.18 * tRatio) : bVal * (1 - 0.25 * tRatio)).toFixed(2)),
+      worsening_value: Number((metric === 'DO' ? bVal * (1 - 0.22 * tRatio) : bVal * (1 + 0.35 * tRatio)).toFixed(2)),
+      ci_80_lower: Number(Math.max(0, bVal - 0.5 - 0.2 * tRatio).toFixed(2)),
+      ci_80_upper: Number((bVal + 0.5 + 0.2 * tRatio).toFixed(2)),
+      ci_95_lower: Number(Math.max(0, bVal - 0.9 - 0.4 * tRatio).toFixed(2)),
+      ci_95_upper: Number((bVal + 0.9 + 0.4 * tRatio).toFixed(2)),
+    });
+  }
+
+  return {
+    location_id: locationId,
+    metric,
+    unit,
+    horizon: horizon.toUpperCase() as any,
+    horizon_days: horizonDays,
+    champion_model: 'Holt-Winters Exponential Smoothing',
+    backtest_metrics: {
+      rmse: 0.42,
+      mae: 0.31,
+      mape_percent: 4.8,
+      r_squared: 0.88
+    },
+    leaderboard: [
+      { model_name: 'Holt-Winters Exponential Smoothing', rmse: 0.42, mae: 0.31, mape_percent: 4.8, r_squared: 0.88, is_champion: true },
+      { model_name: 'SARIMA(1,1,1)(1,0,0)[7]', rmse: 0.51, mae: 0.38, mape_percent: 5.9, r_squared: 0.81, is_champion: false },
+      { model_name: 'Linear Harmonic Extrapolation', rmse: 0.64, mae: 0.46, mape_percent: 7.2, r_squared: 0.74, is_champion: false }
+    ],
+    projections
+  };
+}
+
+function generateFallbackWaterForecastScore(locationId: string, metric: string, horizon: string): ForecastWaterScoreResponse {
+  const horizonDays = horizon === '6_MONTHS' ? 182 : (horizon === '3_YEARS' ? 1095 : (horizon === '5_YEARS' ? 1825 : 365));
+  const projections: ForecastWaterScorePoint[] = [];
+  const startDt = new Date();
+  const stepDays = Math.max(1, Math.floor(horizonDays / 30));
+
+  for (let i = 1; i <= horizonDays; i += stepDays) {
+    const d = new Date(startDt.getTime() + i * 86400000);
+    const dateStr = d.toISOString().split('T')[0];
+    const baseScore = Math.min(95, Math.max(45, 82 + Math.floor(Math.sin(i / 5) * 6)));
+
+    projections.push({
+      date: dateStr,
+      timestamp: `${dateStr}T00:00:00Z`,
+      baseline_water_score: baseScore,
+      baseline_category: baseScore >= 75 ? 'Good' : 'Moderate',
+      improvement_water_score: Math.min(100, baseScore + 10),
+      worsening_water_score: Math.max(25, baseScore - 18),
+      water_score_ci_95_lower: Math.max(20, baseScore - 15),
+      water_score_ci_95_upper: Math.min(100, baseScore + 12)
+    });
+  }
+
+  return {
+    location_id: locationId,
+    metric,
+    horizon: horizon.toUpperCase(),
     projections
   };
 }
