@@ -1,4 +1,4 @@
-export type EnvironmentalDomain = 'air' | 'water' | 'soil' | 'climate' | 'noise';
+export type EnvironmentalDomain = 'overview' | 'air' | 'water' | 'soil' | 'climate' | 'noise';
 
 export interface LocationItem {
   id: string;
@@ -360,4 +360,67 @@ export interface NoiseQualityScoreResponse {
     attribution_notice: string;
     last_updated: string;
   };
+}
+
+export interface DomainScoreSummary {
+  domain: string;
+  domain_name: string;
+  score: number;
+  category: string;
+  color: string;
+  data_coverage_percent: number;
+  data_type: string;
+  source_provenance: string;
+  is_available: boolean;
+}
+
+export interface MultiDomainOverviewResponse {
+  cepi_score: number;
+  category: string;
+  color: string;
+  data_coverage_percent: number;
+  available_domains_count: number;
+  total_domains_count: number;
+  available_domains: string[];
+  missing_domains: string[];
+  weights_used: Record<string, number>;
+  explanation: string;
+  domain_scores: DomainScoreSummary[];
+}
+
+export interface CrossDomainCorrelationItem {
+  metric_a: string;
+  metric_b: string;
+  sample_size: number;
+  status: string;
+  pearson_r?: number | null;
+  spearman_rho?: number | null;
+  p_value?: number | null;
+  is_statistically_significant: boolean;
+  relationship_type?: string | null;
+  disclaimer: string;
+  explanation: string;
+}
+
+export interface CrossDomainCorrelationResponse {
+  location_id: string;
+  correlations: CrossDomainCorrelationItem[];
+  disclaimer: string;
+}
+
+export interface DomainComparisonItem {
+  location_id: string;
+  location_name: string;
+  cepi_score: number;
+  category: string;
+  air_score?: number | null;
+  water_score?: number | null;
+  soil_score?: number | null;
+  climate_score?: number | null;
+  emissions_score?: number | null;
+  noise_score?: number | null;
+}
+
+export interface DomainComparisonResponse {
+  locations: DomainComparisonItem[];
 }

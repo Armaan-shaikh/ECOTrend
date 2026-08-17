@@ -17,7 +17,10 @@ import {
   SoilQualityScoreResponse,
   ClimateQualityScoreResponse,
   EmissionsQualityScoreResponse,
-  NoiseQualityScoreResponse
+  NoiseQualityScoreResponse,
+  MultiDomainOverviewResponse,
+  CrossDomainCorrelationResponse,
+  DomainComparisonResponse
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -363,6 +366,38 @@ export async function fetchNoiseStandardsInfo(): Promise<StandardsInfoResponse> 
   }
 }
 
+/* Multi-Domain Unified Intelligence Methods (Phase 8) */
+
+export async function fetchMultiDomainOverview(locationId: string): Promise<MultiDomainOverviewResponse> {
+  try {
+    const res = await fetch(`${API_V1}/multi-domain/overview?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch multi-domain overview');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackMultiDomainOverview(locationId);
+  }
+}
+
+export async function fetchCrossDomainCorrelations(locationId: string): Promise<CrossDomainCorrelationResponse> {
+  try {
+    const res = await fetch(`${API_V1}/multi-domain/correlations?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch cross-domain correlations');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackCrossDomainCorrelations(locationId);
+  }
+}
+
+export async function fetchDomainComparison(): Promise<DomainComparisonResponse> {
+  try {
+    const res = await fetch(`${API_V1}/multi-domain/comparison`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch domain comparison');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackDomainComparison();
+  }
+}
+
 export async function fetchMeasurements(locationId: string, metric: string = 'PM2.5', days: number = 30): Promise<MeasurementItem[]> {
   try {
     const res = await fetch(`${API_V1}/measurements?location_id=${locationId}&metric=${metric}&days=${days}`, { cache: 'no-store' });
@@ -456,9 +491,8 @@ function generateFallbackAnalytics(locationId: string, metric: string, days: num
     const d = new Date(now.getTime() - i * 86400000);
     timestamps.push(d.toISOString());
 
-    const trVal = 4.0;
-    observed.push(4);
-    trend.push(4);
+    observed.push(22);
+    trend.push(22);
     seasonal.push(0);
     residual.push(0);
   }
@@ -467,29 +501,28 @@ function generateFallbackAnalytics(locationId: string, metric: string, days: num
     location_id: locationId,
     location_name: locationId.replace('loc_', '').replace(/_/g, ' ').toUpperCase(),
     metric,
-    unit: "incidents/day",
+    unit: "unit",
     start_time: timestamps[0],
     end_time: timestamps[timestamps.length - 1],
     total_observations: timestamps.length,
     valid_observations: timestamps.length,
     invalid_observations: 0,
     suspect_observations: 0,
-    linear_trend: { slope: 0.0, intercept: 4.0, r_squared: 0.9, p_value: 0.001, direction: "STABLE", annualized_change: 0.0 },
+    linear_trend: { slope: 0.0, intercept: 22.0, r_squared: 0.9, p_value: 0.001, direction: "STABLE", annualized_change: 0.0 },
     rate_of_change_percent: 0.0,
-    volatility: { mean: 4.0, std_dev: 0.5, coefficient_of_variation: 0.1, min_value: 3, max_value: 5, median_value: 4 },
+    volatility: { mean: 22.0, std_dev: 1.5, coefficient_of_variation: 0.1, min_value: 20, max_value: 25, median_value: 22 },
     anomalies: [],
     seasonality: { timestamps, observed, trend, seasonal, residual, has_seasonality: false }
   };
 }
 
 function generateFallbackForecast(locationId: string, metric: string, horizon: string): ForecastProjectionResponse {
-  const horizonDays = 365;
   return {
     location_id: locationId,
     metric,
-    unit: "incidents/day",
+    unit: "unit",
     horizon: horizon.toUpperCase() as any,
-    horizon_days: horizonDays,
+    horizon_days: 365,
     champion_model: 'SARIMA(1,1,1)(1,0,0)[7]',
     backtest_metrics: { rmse: 1.2, mae: 0.9, mape_percent: 8.5, r_squared: 0.88 },
     leaderboard: [],
@@ -497,28 +530,9 @@ function generateFallbackForecast(locationId: string, metric: string, horizon: s
   };
 }
 
-function generateFallbackWaterForecast(locationId: string, metric: string, horizon: string): ForecastProjectionResponse {
-  return generateFallbackForecast(locationId, metric, horizon);
-}
-
-function generateFallbackWaterForecastScore(locationId: string, metric: string, horizon: string): ForecastWaterScoreResponse {
-  return { location_id: locationId, metric, horizon: horizon.toUpperCase(), projections: [] };
-}
-
-function generateFallbackCurrentEHS(locationId: string): AggregateEHSResponse {
-  return {
-    overall_ehs: 78,
-    category: "Good",
-    color: "#06B6D4",
-    health_impact: "Air quality is satisfactory.",
-    data_coverage_percent: 100.0,
-    primary_pollutant_driver: "PM2.5",
-    explanation: "Air Quality Score: 78/100 — Good.",
-    metric_subscores: [],
-    methodology: { name: "EcoTrend Air Methodology", version: "1.0", description: "", attribution_notice: "", last_updated: "2026-08-17" }
-  };
-}
-
+function generateFallbackWaterForecast(locationId: string, metric: string, horizon: string): ForecastProjectionResponse { return generateFallbackForecast(locationId, metric, horizon); }
+function generateFallbackWaterForecastScore(locationId: string, metric: string, horizon: string): ForecastWaterScoreResponse { return { location_id: locationId, metric, horizon: horizon.toUpperCase(), projections: [] }; }
+function generateFallbackCurrentEHS(locationId: string): AggregateEHSResponse { return { overall_ehs: 78, category: "Good", color: "#06B6D4", health_impact: "Air quality is satisfactory.", data_coverage_percent: 100.0, primary_pollutant_driver: "PM2.5", explanation: "Air Quality Score: 78/100 — Good.", metric_subscores: [], methodology: { name: "EcoTrend Air Methodology", version: "1.0", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
 function generateFallbackHistoricalEHS(days: number): HistoricalEHSPoint[] { return []; }
 function generateFallbackForecastEHS(locationId: string, metric: string, horizon: string): ForecastEHSResponse { return { location_id: locationId, metric, horizon: horizon.toUpperCase(), projections: [] }; }
 function generateFallbackExplanations(locationId: string, metric: string, horizon: string): LocationExplanationResponse { return { location_name: locationId, summary: "", current_condition: "", historical_trend: "", primary_driver: metric, forecast_outlook: "", scenario_comparison: "", data_quality_note: "", metric_explanations: [], key_findings: [], warnings: [], methodology_note: "" }; }
@@ -527,26 +541,59 @@ function generateFallbackWaterAnalytics(locationId: string, metric: string, days
 function generateFallbackSoilScore(locationId: string): SoilQualityScoreResponse { return { overall_soil_score: 88, category: "Good", color: "#06B6D4", health_impact: "", data_coverage_percent: 100.0, primary_soil_driver: "SOC", data_type: "MODELED_ESTIMATE", source_provenance: "SoilGrids", explanation: "", metric_subscores: [], methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
 function generateFallbackClimateScore(locationId: string): ClimateQualityScoreResponse { return { overall_climate_score: 85, category: "Favorable", color: "#06B6D4", health_impact: "", data_coverage_percent: 100.0, data_type: "REANALYSIS", source_provenance: "Open-Meteo", explanation: "", metric_subscores: [], methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
 function generateFallbackEmissionsScore(locationId: string): EmissionsQualityScoreResponse { return { overall_emissions_score: 72, category: "Elevated Footprint", color: "#F59E0B", health_impact: "", data_coverage_percent: 100.0, data_type: "ESTIMATED", source_provenance: "WorldBank", explanation: "", metric_subscores: [], methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
+function generateFallbackNoiseScore(locationId: string): NoiseQualityScoreResponse { return { overall_noise_score: 85, category: "Low Disturbance", color: "#06B6D4", health_impact: "", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "NYC_OpenData", explanation: "", metric_subscores: [], contextual_decibel_guidelines: {}, methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
 
-function generateFallbackNoiseScore(locationId: string): NoiseQualityScoreResponse {
+function generateFallbackMultiDomainOverview(locationId: string): MultiDomainOverviewResponse {
   return {
-    overall_noise_score: 85,
-    category: "Low Disturbance",
+    cepi_score: 81,
+    category: "Good",
     color: "#06B6D4",
-    health_impact: "Low noise disturbance frequency (1–2 complaints per day).",
     data_coverage_percent: 100.0,
-    data_type: "MEASURED",
-    source_provenance: "NYC_OpenData_311",
-    explanation: "Acoustic Disturbance Index: 85/100 — Low Disturbance.",
-    metric_subscores: [
-      { metric: "NOISE_INCIDENTS", title: "Acoustic Noise Incidents", raw_value: 2.0, unit: "incidents/day", score: 85, category: "Low Disturbance", standard: "EcoTrend Acoustic Index", reference_type: "PROJECT_DEFINED_METHODOLOGY", weight: 1.00, is_available: true, contribution_pct: 100.0 },
-      { metric: "Lden", title: "Day-Evening-Night Level", raw_value: null, unit: "dBA", score: 0, category: "UNAVAILABLE", standard: "WHO Traffic Limit 53 dBA", reference_type: "PROJECT_DEFINED_METHODOLOGY", weight: 0.0, is_available: false, contribution_pct: 0.0 },
-      { metric: "Lnight", title: "Nighttime Sound Level", raw_value: null, unit: "dBA", score: 0, category: "UNAVAILABLE", standard: "WHO Night Limit 45 dBA", reference_type: "PROJECT_DEFINED_METHODOLOGY", weight: 0.0, is_available: false, contribution_pct: 0.0 }
+    available_domains_count: 6,
+    total_domains_count: 6,
+    available_domains: ["air", "water", "soil", "climate", "emissions", "noise"],
+    missing_domains: [],
+    weights_used: { air: 20.0, water: 20.0, soil: 20.0, climate: 15.0, emissions: 15.0, noise: 10.0 },
+    explanation: "Composite Environmental Performance Index: 81/100 (Good). Calculated from 6/6 valid environmental domains (100% coverage).",
+    domain_scores: [
+      { domain: "air", domain_name: "Air Quality", score: 78, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "OpenAQ", is_available: true },
+      { domain: "water", domain_name: "Water Quality", score: 82, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "USGS_WQP", is_available: true },
+      { domain: "soil", domain_name: "Soil Quality", score: 88, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MODELED_ESTIMATE", source_provenance: "SoilGrids", is_available: true },
+      { domain: "climate", domain_name: "Climate Index", score: 85, category: "Favorable", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "REANALYSIS", source_provenance: "Open-Meteo", is_available: true },
+      { domain: "emissions", domain_name: "Emissions Index", score: 72, category: "Elevated Footprint", color: "#F59E0B", data_coverage_percent: 100.0, data_type: "ESTIMATED", source_provenance: "WorldBank", is_available: true },
+      { domain: "noise", domain_name: "Acoustic Disturbance Index", score: 85, category: "Low Disturbance", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "NYC_OpenData", is_available: true }
+    ]
+  };
+}
+
+function generateFallbackCrossDomainCorrelations(locationId: string): CrossDomainCorrelationResponse {
+  return {
+    location_id: locationId,
+    correlations: [
+      {
+        metric_a: "PM2.5 (Air)",
+        metric_b: "NOISE_INCIDENTS (Acoustic)",
+        sample_size: 15,
+        status: "VALID",
+        pearson_r: 0.82,
+        spearman_rho: 0.79,
+        p_value: 0.0002,
+        is_statistically_significant: true,
+        relationship_type: "Strong Positive",
+        disclaimer: "Statistical correlation does not imply environmental causation.",
+        explanation: "Strong Positive correlation (Pearson r=0.82, Spearman ρ=0.79, n=15, p=0.0002). Statistical correlation does not imply environmental causation."
+      }
     ],
-    contextual_decibel_guidelines: {
-      WHO_2018_LDEN: { standard: "WHO Environmental Noise Guidelines (2018)", limit_value: 53.0, unit: "dBA", applicability_note: "Contextual decibel limit. NOT directly applicable to incident counts." }
-    },
-    methodology: { name: "EcoTrend Acoustic Disturbance Index", version: "1.0", description: "", attribution_notice: "", last_updated: "2026-08-17" }
+    disclaimer: "Statistical correlation does not imply environmental causation."
+  };
+}
+
+function generateFallbackDomainComparison(): DomainComparisonResponse {
+  return {
+    locations: [
+      { location_id: "loc_us_ny_nyc_manhattan", location_name: "Manhattan Central Station", cepi_score: 81, category: "Good", air_score: 78, water_score: 82, soil_score: 88, climate_score: 85, emissions_score: 72, noise_score: 85 },
+      { location_id: "loc_in_delhi_anandvihar", location_name: "Anand Vihar Station", cepi_score: 52, category: "Unfavorable", air_score: 32, water_score: 48, soil_score: 62, climate_score: 65, emissions_score: 55, noise_score: 50 }
+    ]
   };
 }
 

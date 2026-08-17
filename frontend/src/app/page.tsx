@@ -44,6 +44,12 @@ import { NoiseSubScoreCards } from '../components/NoiseSubScoreCards';
 import { NoiseGlossaryPanel } from '../components/NoiseGlossaryPanel';
 import { NoiseStandardsModal } from '../components/NoiseStandardsModal';
 
+// Multi-Domain Intelligence Components (Phase 8)
+import { MultiDomainOverviewCard } from '../components/MultiDomainOverviewCard';
+import { MultiDomainRadarChart } from '../components/MultiDomainRadarChart';
+import { CrossDomainCorrelationMatrix } from '../components/CrossDomainCorrelationMatrix';
+import { DomainComparisonTable } from '../components/DomainComparisonTable';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -71,7 +77,10 @@ import {
   fetchEmissionsQualityScore,
   fetchNoiseStations,
   fetchNoiseQualityScore,
-  fetchHistoricalNoiseAnalytics
+  fetchHistoricalNoiseAnalytics,
+  fetchMultiDomainOverview,
+  fetchCrossDomainCorrelations,
+  fetchDomainComparison
 } from '../lib/api';
 
 import {
@@ -89,13 +98,16 @@ import {
   SoilQualityScoreResponse,
   ClimateQualityScoreResponse,
   EmissionsQualityScoreResponse,
-  NoiseQualityScoreResponse
+  NoiseQualityScoreResponse,
+  MultiDomainOverviewResponse,
+  CrossDomainCorrelationResponse,
+  DomainComparisonResponse
 } from '../lib/types';
 
-import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2 } from 'lucide-react';
+import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2, Globe } from 'lucide-react';
 
 export default function DashboardPage() {
-  const [domain, setDomain] = useState<EnvironmentalDomain>('air');
+  const [domain, setDomain] = useState<EnvironmentalDomain>('overview');
 
   // Air Domain State
   const [tree, setTree] = useState<LocationTreeItem[]>([]);
@@ -119,7 +131,7 @@ export default function DashboardPage() {
   const [selectedClimateStationId, setSelectedClimateStationId] = useState<string>('loc_us_ny_nyc_climate');
   const [selectedClimateMetric, setSelectedClimateMetric] = useState<string>('T2M');
 
-  // Noise Domain State (Phase 7)
+  // Noise Domain State
   const [noiseStations, setNoiseStations] = useState<LocationItem[]>([]);
   const [selectedNoiseStationId, setSelectedNoiseStationId] = useState<string>('loc_us_ny_nyc_manhattan_noise');
   const [selectedNoiseMetric, setSelectedNoiseMetric] = useState<string>('NOISE_INCIDENTS');
@@ -148,6 +160,11 @@ export default function DashboardPage() {
   const [noiseScore, setNoiseScore] = useState<NoiseQualityScoreResponse | null>(null);
   const [noiseAnalytics, setNoiseAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
 
+  // Multi-Domain Unified Data States (Phase 8)
+  const [multiOverview, setMultiOverview] = useState<MultiDomainOverviewResponse | null>(null);
+  const [crossCorrelations, setCrossCorrelations] = useState<CrossDomainCorrelationResponse | null>(null);
+  const [domainComparison, setDomainComparison] = useState<DomainComparisonResponse | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
@@ -157,6 +174,7 @@ export default function DashboardPage() {
   const [loadingSoil, setLoadingSoil] = useState<boolean>(true);
   const [loadingClimate, setLoadingClimate] = useState<boolean>(true);
   const [loadingNoise, setLoadingNoise] = useState<boolean>(true);
+  const [loadingMultiDomain, setLoadingMultiDomain] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -183,7 +201,9 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (domain === 'air') {
+    if (domain === 'overview') {
+      loadMultiDomainData();
+    } else if (domain === 'air') {
       loadAnalytics();
       loadForecast();
       loadEHS();
@@ -223,6 +243,24 @@ export default function DashboardPage() {
   const loadNoiseStations = async () => {
     const st = await fetchNoiseStations();
     setNoiseStations(st);
+  };
+
+  const loadMultiDomainData = async () => {
+    setLoadingMultiDomain(true);
+    try {
+      const [ovRes, corrRes, compRes] = await Promise.all([
+        fetchMultiDomainOverview(selectedLocationId),
+        fetchCrossDomainCorrelations(selectedLocationId),
+        fetchDomainComparison()
+      ]);
+      setMultiOverview(ovRes);
+      setCrossCorrelations(corrRes);
+      setDomainComparison(compRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMultiDomain(false);
+    }
   };
 
   const loadAnalytics = async () => {
@@ -365,7 +403,9 @@ export default function DashboardPage() {
 
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    if (domain === 'air') {
+    if (domain === 'overview') {
+      await loadMultiDomainData();
+    } else if (domain === 'air') {
       await Promise.all([loadAnalytics(), loadForecast(), loadEHS(), loadExplanations()]);
     } else if (domain === 'water') {
       await Promise.all([loadWaterData(), loadWaterForecastData()]);
@@ -391,7 +431,28 @@ export default function DashboardPage() {
       />
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
-        {domain === 'air' ? (
+        {domain === 'overview' ? (
+          /* UNIFIED 6-DOMAIN MULTI-INTELLIGENCE OVERVIEW (Phase 8) */
+          <>
+            <MultiDomainOverviewCard overview={multiOverview} loading={loadingMultiDomain} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              <div className="lg:col-span-6">
+                {multiOverview && <MultiDomainRadarChart domainScores={multiOverview.domain_scores} />}
+              </div>
+              <div className="lg:col-span-6">
+                {domainComparison && <DomainComparisonTable locations={domainComparison.locations} />}
+              </div>
+            </div>
+
+            {crossCorrelations && (
+              <CrossDomainCorrelationMatrix
+                correlations={crossCorrelations.correlations}
+                disclaimer={crossCorrelations.disclaimer}
+              />
+            )}
+          </>
+        ) : domain === 'air' ? (
           /* AIR QUALITY DOMAIN DASHBOARD */
           <>
             <LocationSelector
@@ -625,7 +686,7 @@ export default function DashboardPage() {
             <ClimateGlossaryPanel />
           </>
         ) : (
-          /* NOISE & ACOUSTIC DISTURBANCE DOMAIN DASHBOARD (Phase 7) */
+          /* NOISE & ACOUSTIC DISTURBANCE DOMAIN DASHBOARD */
           <>
             <div className="bg-eco-card border border-eco-border rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -661,25 +722,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Acoustic Disturbance Index Score */}
-            <NoiseScoreCard
-              noiseScore={noiseScore}
-              loading={loadingNoise}
-              onOpenMethodology={() => setIsNoiseStandardsOpen(true)}
-            />
-
-            {/* Acoustic Metric Sub-Score Cards & Explicit UNAVAILABLE dBA Badges */}
+            <NoiseScoreCard noiseScore={noiseScore} loading={loadingNoise} onOpenMethodology={() => setIsNoiseStandardsOpen(true)} />
             {noiseScore && <NoiseSubScoreCards subscores={noiseScore.metric_subscores} />}
-
-            {/* Key Metrics Summary Overview */}
             <MetricsOverview analytics={noiseAnalytics} loading={loadingNoise} />
 
-            {/* Historical Noise Analytics Time-Series Chart */}
             <div className="bg-eco-card border border-eco-border rounded-2xl p-6 shadow-lg">
               <HistoricalAnalyticsChart analytics={noiseAnalytics} loading={loadingNoise} />
             </div>
 
-            {/* Plain-Language Acoustic Glossary */}
             <NoiseGlossaryPanel />
           </>
         )}
@@ -689,7 +739,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 7 · <strong className="text-eco-text">Acoustic Disturbance Intelligence Pipeline</strong>
+              EcoTrend Phase 8 · <strong className="text-eco-text">Unified 6-Domain Environmental Intelligence Platform</strong>
             </span>
           </div>
 
@@ -705,7 +755,7 @@ export default function DashboardPage() {
       <DataAuditDrawer
         isOpen={isAuditOpen}
         onClose={() => setIsAuditOpen(false)}
-        selectedLocationId={domain === 'air' ? selectedLocationId : domain === 'water' ? selectedWaterStationId : domain === 'soil' ? selectedSoilStationId : domain === 'climate' ? selectedClimateStationId : selectedNoiseStationId}
+        selectedLocationId={selectedLocationId}
       />
 
       <BacktestScorecardDrawer
