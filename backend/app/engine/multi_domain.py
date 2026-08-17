@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import stats
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 BASELINE_DOMAIN_WEIGHTS = {
     "air": 0.20,
@@ -18,7 +18,7 @@ class MultiDomainEngine:
     Unified 6-Domain Environmental Intelligence Engine:
     - Calculates Composite Environmental Performance Index (CEPI: 0-100) with dynamic weight re-normalization.
     - Preserves 100% domain score isolation and data provenance.
-    - Computes dual Pearson (r) and Spearman (rho) correlations with spatial/temporal alignment and n >= 10 constraint.
+    - Performs temporal + spatial pairing before computing dual Pearson (r) and Spearman (rho) correlations (n >= 10).
     """
 
     @staticmethod
@@ -26,6 +26,7 @@ class MultiDomainEngine:
         """
         Calculate CEPI from valid available domain scores.
         Missing/unavailable domains NEVER become 0 and DO NOT penalize CEPI.
+        Exposes available_domains, missing_domains, data_coverage_percent, and weights_used (re-normalized to 100%).
         """
         available_domains = []
         missing_domains = []
@@ -47,7 +48,7 @@ class MultiDomainEngine:
 
         if total_available_weight > 0:
             cepi_score = int(round(weighted_score_sum / total_available_weight))
-            # Normalize weights_used for display
+            # Normalize weights_used for display (e.g. sum to 100.0%)
             normalized_weights = {d: round((w / total_available_weight) * 100.0, 1) for d, w in weights_used.items()}
         else:
             cepi_score = 80
@@ -79,9 +80,42 @@ class MultiDomainEngine:
             "weights_used": normalized_weights,
             "explanation": (
                 f"Composite Environmental Performance Index: {cepi_score}/100 ({category}). "
-                f"Calculated from {len(available_domains)}/6 valid environmental domains ({coverage_pct}% coverage)."
+                f"Calculated from {len(available_domains)}/6 valid environmental domains ({coverage_pct}% coverage). "
+                f"Unavailable domains: {missing_domains or 'None'}."
             )
         }
+
+    @staticmethod
+    def align_time_series(
+        records_a: List[Dict[str, Any]],
+        records_b: List[Dict[str, Any]]
+    ) -> Tuple[List[float], List[float]]:
+        """
+        Perform spatial + temporal alignment across two measurement series.
+        Matches observations strictly on (location_id, date_stamp).
+        """
+        dict_a = {}
+        for r in records_a:
+            loc = r.get("location_id", "")
+            ts = r.get("timestamp", "").split("T")[0]
+            val = r.get("value")
+            if loc and ts and val is not None and r.get("data_quality") != "INVALID":
+                dict_a[(loc, ts)] = float(val)
+
+        paired_a = []
+        paired_b = []
+
+        for r in records_b:
+            loc = r.get("location_id", "")
+            ts = r.get("timestamp", "").split("T")[0]
+            val = r.get("value")
+            if loc and ts and val is not None and r.get("data_quality") != "INVALID":
+                key = (loc, ts)
+                if key in dict_a:
+                    paired_a.append(dict_a[key])
+                    paired_b.append(float(val))
+
+        return paired_a, paired_b
 
     @staticmethod
     def compute_cross_domain_correlation(
@@ -109,7 +143,7 @@ class MultiDomainEngine:
                 "p_value": None,
                 "is_statistically_significant": False,
                 "disclaimer": CAUSATION_DISCLAIMER,
-                "explanation": f"Insufficient aligned paired observations (n={n} < 10 threshold required for correlation)."
+                "explanation": f"Insufficient temporally/spatially aligned observation pairs (n={n} < 10 threshold required for correlation)."
             }
 
         arr_a = np.array([p[0] for p in paired])

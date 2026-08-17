@@ -18,6 +18,8 @@ def test_cepi_all_domains_available():
     assert res["cepi_score"] == 80
     assert res["available_domains_count"] == 6
     assert res["data_coverage_percent"] == 100.0
+    assert res["weights_used"]["air"] == 20.0
+    assert res["weights_used"]["noise"] == 10.0
 
 def test_cepi_missing_domain_renormalization():
     # Noise domain missing (e.g. outside NYC) -> Must NOT penalize CEPI or turn into 0
@@ -34,6 +36,26 @@ def test_cepi_missing_domain_renormalization():
     assert res["available_domains_count"] == 5
     assert "noise" in res["missing_domains"]
     assert res["data_coverage_percent"] == 90.0
+    # Re-normalized weights check: 20% out of 90% total = 22.2% for Air
+    assert res["weights_used"]["air"] == 22.2
+
+def test_spatial_temporal_alignment():
+    rec_a = [
+        {"location_id": "loc_1", "timestamp": "2026-08-01T00:00:00Z", "value": 10.0, "data_quality": "VALID"},
+        {"location_id": "loc_1", "timestamp": "2026-08-02T00:00:00Z", "value": 15.0, "data_quality": "VALID"},
+        {"location_id": "loc_2", "timestamp": "2026-08-01T00:00:00Z", "value": 20.0, "data_quality": "VALID"}
+    ]
+    rec_b = [
+        {"location_id": "loc_1", "timestamp": "2026-08-01T00:00:00Z", "value": 2.0, "data_quality": "VALID"},
+        {"location_id": "loc_1", "timestamp": "2026-08-02T00:00:00Z", "value": 3.0, "data_quality": "VALID"},
+        {"location_id": "loc_3", "timestamp": "2026-08-01T00:00:00Z", "value": 5.0, "data_quality": "VALID"}
+    ]
+
+    p_a, p_b = MultiDomainEngine.align_time_series(rec_a, rec_b)
+    assert len(p_a) == 2
+    assert len(p_b) == 2
+    assert p_a == [10.0, 15.0]
+    assert p_b == [2.0, 3.0]
 
 def test_cross_domain_correlation_insufficient_data():
     # n = 5 < 10 threshold -> INSUFFICIENT_DATA
