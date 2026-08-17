@@ -22,7 +22,7 @@ def clear_caches_before_test():
     yield
     cache_manager.clear()
 
-# Cache Tests (Step 1)
+# Cache Tests (Step 1 & 5)
 def test_cache_miss_executes_function():
     call_count = 0
 
@@ -179,8 +179,28 @@ def test_cache_serialization_preserves_structure():
     assert isinstance(res2["domains"], list)
     assert res2["subscores"]["air"]["is_valid"] is True
 
+def test_cache_performance_benchmark():
+    @cached_endpoint(prefix="test_bench", ttl_seconds=60)
+    def slow_calculation():
+        time.sleep(0.05) # 50ms artificial computation delay
+        return {"result": 42}
 
-# Health Probe Tests (Step 2)
+    # First call (Uncached): includes computation delay
+    t0 = time.time()
+    res1 = slow_calculation()
+    t_uncached = (time.time() - t0) * 1000.0
+
+    # Second call (Cached): retrieved instantly from cache
+    t1 = time.time()
+    res2 = slow_calculation()
+    t_cached = (time.time() - t1) * 1000.0
+
+    assert res1 == res2
+    assert t_uncached >= 45.0
+    assert t_cached < 10.0 # Sub-10ms lookup speed verified
+
+
+# Health Probe Tests (Step 2 & 5)
 
 def test_liveness_returns_200():
     res = client.get("/api/v1/health/liveness")
@@ -276,7 +296,7 @@ def test_health_routes_registered_under_prefix():
     assert res_readiness.status_code in [200, 503]
 
 
-# Database Index Audit Tests (Step 3)
+# Database Index Audit Tests (Step 3 & 5)
 
 def test_measurement_index_definitions():
     indexes = {idx.name: [c.name for c in idx.columns] for idx in EnvironmentalMeasurement.__table__.indexes}
@@ -305,7 +325,7 @@ def test_valid_indexed_columns():
             assert c.name in table_cols
 
 
-# Docker Containerization & Environment Audit Tests (Step 4)
+# Docker Containerization & Environment Audit Tests (Step 4 & 5)
 
 def test_docker_files_exist():
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -363,5 +383,4 @@ def test_no_hardcoded_secrets_in_docker_files():
     with open(compose_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Verify passwords are env var references rather than plain string credentials
     assert "${POSTGRES_PASSWORD" in content
