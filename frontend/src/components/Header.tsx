@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu, Sparkles, Brain, Lock } from 'lucide-react';
+import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu, Sparkles, Brain, Lock, Zap } from 'lucide-react';
 import { EnvironmentalDomain } from '../lib/types';
 
 interface HeaderProps {
@@ -14,6 +14,7 @@ interface HeaderProps {
   onOpenPredictiveModal: () => void;
   onOpenDecisionModal: () => void;
   onOpenGovernanceModal: () => void;
+  onOpenWorkflowModal: () => void;
   isRefreshing: boolean;
 }
 
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPredictiveModal,
   onOpenDecisionModal,
   onOpenGovernanceModal,
+  onOpenWorkflowModal,
   isRefreshing,
 }) => {
   return (
@@ -40,11 +42,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-eco-text">EcoTrend</h1>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 14 · Governance & Security
+                Phase 15 · Automation & Integrations
               </span>
             </div>
             <p className="text-xs text-eco-muted font-medium">
-              Environmental Intelligence & Enterprise Platform
+              Environmental Intelligence & Multi-Domain Platform
             </p>
           </div>
         </div>
@@ -126,6 +128,14 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenWorkflowModal}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-semibold text-purple-400 transition"
+        >
+          <Zap className="w-4 h-4" />
+          <span>Automation ⚡</span>
+        </button>
+
         <button
           onClick={onOpenGovernanceModal}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-semibold text-amber-400 transition"

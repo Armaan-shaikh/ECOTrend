@@ -762,5 +762,58 @@ export interface GovernanceOverviewItem {
   users: UserItem[];
 }
 
+export interface WorkflowInstanceItem {
+  id: string;
+  tenant_id: string;
+  workflow_type: string;
+  status: string;
+  current_step: string;
+  retry_count: number;
+  max_retries: number;
+  correlation_id?: string | null;
+  error_message?: string | null;
+  provenance: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DomainEventItem {
+  event_id: string;
+  event_type: string;
+  tenant_id: string;
+  source: string;
+  resource_type: string;
+  resource_id: string;
+  timestamp: string;
+  correlation_id: string;
+  causation_id?: string | null;
+  provenance: string;
+  schema_version: string;
+  payload: Record<string, any>;
+}
+
+export interface NotificationLogItem {
+  id: string;
+  tenant_id: string;
+  recipient: string;
+  channel: string;
+  severity: string;
+  title: string;
+  message: string;
+  delivery_status: string;
+  provenance: string;
+  created_at: string;
+}
+
+export interface WebhookSubscriptionItem {
+  id: string;
+  tenant_id: string;
+  target_url: string;
+  events_filter: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+
 
 

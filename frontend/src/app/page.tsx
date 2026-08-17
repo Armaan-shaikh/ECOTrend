@@ -67,6 +67,7 @@ import { ScenarioAnalysisModal } from '../components/ScenarioAnalysisModal';
 import { DecisionSupportDashboard } from '../components/DecisionSupportDashboard';
 import { DecisionEvidencePanel } from '../components/DecisionEvidencePanel';
 
+import { WorkflowOperationsDashboard } from '../components/WorkflowOperationsDashboard';
 import { GovernanceDashboard } from '../components/GovernanceDashboard';
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
@@ -243,6 +244,7 @@ export default function DashboardPage() {
   const [isScenarioModalOpen, setIsScenarioModalOpen] = useState<boolean>(false);
   const [isDecisionAuditModalOpen, setIsDecisionAuditModalOpen] = useState<boolean>(false);
   const [isGovernanceModalOpen, setIsGovernanceModalOpen] = useState<boolean>(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -555,6 +557,7 @@ export default function DashboardPage() {
         onOpenPredictiveModal={() => setIsScenarioModalOpen(true)}
         onOpenDecisionModal={() => handleOpenDecisionAudit('rec_comp_air_PM2.5_101')}
         onOpenGovernanceModal={() => setIsGovernanceModalOpen(true)}
+        onOpenWorkflowModal={() => setIsWorkflowModalOpen(true)}
         isRefreshing={isRefreshing}
       />
 
@@ -978,6 +981,11 @@ export default function DashboardPage() {
       <GovernanceDashboard
         isOpen={isGovernanceModalOpen}
         onClose={() => setIsGovernanceModalOpen(false)}
+      />
+
+      <WorkflowOperationsDashboard
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
       />
     </div>
   );

@@ -39,7 +39,11 @@ import {
   ApprovalRequestItem,
   AuditEventItem,
   SecuritySummaryItem,
-  UserItem
+  UserItem,
+  WorkflowInstanceItem,
+  DomainEventItem,
+  NotificationLogItem,
+  WebhookSubscriptionItem
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -676,6 +680,67 @@ export async function fetchUsersList(): Promise<UserItem[]> {
     ];
   }
 }
+
+/* Event-Driven Automation, Workflow Orchestration & Enterprise Integrations (Phase 15) */
+
+export async function fetchWorkflows(): Promise<WorkflowInstanceItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/workflows`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch workflows');
+    return await res.json();
+  } catch (err) {
+    return [
+      { id: "wf_inst_001", tenant_id: "tenant_ecotrend_enterprise", workflow_type: "INGESTION_RESPONSE_PIPELINE", status: "COMPLETED", current_step: "FINALIZE", retry_count: 0, max_retries: 3, correlation_id: "corr_wf_001", provenance: "WORKFLOW_ENGINE", created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+    ];
+  }
+}
+
+export async function retryWorkflow(id: string): Promise<WorkflowInstanceItem> {
+  const res = await fetch(`${API_V1}/workflows/${id}/retry`, { method: 'POST' });
+  return await res.json();
+}
+
+export async function cancelWorkflow(id: string): Promise<WorkflowInstanceItem> {
+  const res = await fetch(`${API_V1}/workflows/${id}/cancel`, { method: 'POST' });
+  return await res.json();
+}
+
+export async function fetchDomainEvents(): Promise<DomainEventItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/events`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch domain events');
+    return await res.json();
+  } catch (err) {
+    return [
+      { event_id: "evt_001", event_type: "INGESTION_COMPLETED", tenant_id: "tenant_ecotrend_enterprise", source: "OpenAQ Adapter", resource_type: "AirObservation", resource_id: "obs_001", timestamp: new Date().toISOString(), correlation_id: "corr_001", provenance: "EVENT_BUS", schema_version: "1.0", payload: { domain: "air", metric: "PM2.5", value: 22.5 } }
+    ];
+  }
+}
+
+export async function fetchNotificationLogs(): Promise<NotificationLogItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/notifications`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch notification logs');
+    return await res.json();
+  } catch (err) {
+    return [
+      { id: "notif_001", tenant_id: "tenant_ecotrend_enterprise", recipient: "admin@ecotrend.io", channel: "IN_APP", severity: "WARNING", title: "PM2.5 Threshold Exceedance Alert", message: "Observed PM2.5 breaches WHO guideline threshold.", delivery_status: "DELIVERED", provenance: "NOTIFICATION_ENGINE", created_at: new Date().toISOString() }
+    ];
+  }
+}
+
+export async function fetchWebhooks(): Promise<WebhookSubscriptionItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/integrations/webhooks`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch webhooks');
+    return await res.json();
+  } catch (err) {
+    return [
+      { id: "wh_sub_001", tenant_id: "tenant_ecotrend_enterprise", target_url: "https://hooks.enterprise-ehs.internal/ecotrend", events_filter: "*", is_active: true, created_at: new Date().toISOString() }
+    ];
+  }
+}
+
 
 
 
