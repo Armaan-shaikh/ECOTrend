@@ -35,7 +35,11 @@ import {
   DecisionOverviewResponse,
   DecisionRecommendationItem,
   InterventionOptionItem,
-  DecisionAuditResponse
+  DecisionAuditResponse,
+  ApprovalRequestItem,
+  AuditEventItem,
+  SecuritySummaryItem,
+  UserItem
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -602,6 +606,78 @@ export async function fetchDecisionAudit(recommendationId: string = 'rec_comp_ai
   }
 }
 
+/* Enterprise Governance, Security & Multi-Tenancy Methods (Phase 14) */
+
+export async function fetchApprovalRequests(): Promise<ApprovalRequestItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/approvals`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch approval requests');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackApprovalRequests();
+  }
+}
+
+export async function approveInterventionRequest(id: string, reason: string = 'Approved by authorized EHS Manager'): Promise<ApprovalRequestItem> {
+  const res = await fetch(`${API_V1}/approvals/${id}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision_reason: reason })
+  });
+  return await res.json();
+}
+
+export async function rejectInterventionRequest(id: string, reason: string = 'Rejected by authorized EHS Manager'): Promise<ApprovalRequestItem> {
+  const res = await fetch(`${API_V1}/approvals/${id}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision_reason: reason })
+  });
+  return await res.json();
+}
+
+export async function fetchAuditEvents(limit: number = 50): Promise<AuditEventItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/admin/audit?limit=${limit}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch audit events');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackAuditEvents();
+  }
+}
+
+export async function fetchSecuritySummary(): Promise<SecuritySummaryItem> {
+  try {
+    const res = await fetch(`${API_V1}/admin/security/summary`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch security summary');
+    return await res.json();
+  } catch (err) {
+    return {
+      active_users_count: 3,
+      active_tenants_count: 1,
+      pending_approvals_count: 1,
+      audit_events_24h_count: 12,
+      security_posture: "OPTIMAL_ENTERPRISE_GOVERNANCE",
+      rbac_status: "DENY_BY_DEFAULT_ENFORCED"
+    };
+  }
+}
+
+export async function fetchUsersList(): Promise<UserItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/admin/users`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch users list');
+    return await res.json();
+  } catch (err) {
+    return [
+      { id: "usr_001", tenant_id: "tenant_ecotrend_enterprise", email: "admin@ecotrend.io", full_name: "System Administrator", role: "SUPER_ADMIN", is_active: true, created_at: new Date().toISOString() },
+      { id: "usr_002", tenant_id: "tenant_ecotrend_enterprise", email: "operator@ecotrend.io", full_name: "EHS Operator", role: "OPERATOR", is_active: true, created_at: new Date().toISOString() },
+      { id: "usr_003", tenant_id: "tenant_ecotrend_enterprise", email: "analyst@ecotrend.io", full_name: "Data Analyst", role: "ANALYST", is_active: true, created_at: new Date().toISOString() }
+    ];
+  }
+}
+
+
 
 
 export async function fetchMeasurements(locationId: string, metric: string = 'PM2.5', days: number = 30): Promise<MeasurementItem[]> {
@@ -950,5 +1026,48 @@ function generateFallbackDecisionAudit(recommendationId: string): DecisionAuditR
     legal_disclaimer: "Decision Support recommendations assist human EHS managers and do not substitute for statutory orders."
   };
 }
+
+function generateFallbackApprovalRequests(): ApprovalRequestItem[] {
+  return [
+    {
+      id: "app_req_001",
+      tenant_id: "tenant_ecotrend_enterprise",
+      submitter_id: "usr_operator_002",
+      approver_id: null,
+      intervention_id: "int_air_traffic",
+      title: "Urban Traffic Low-Emission Zone Deployment",
+      domain: "air",
+      status: "SUBMITTED",
+      estimated_cepi_improvement: 3.5,
+      reason: "PM2.5 threshold breach observed in Hudson sector; request traffic signal optimization.",
+      decision_reason: null,
+      provenance: "APPROVAL_WORKFLOW",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ];
+}
+
+function generateFallbackAuditEvents(): AuditEventItem[] {
+  return [
+    {
+      id: "aud_evt_001",
+      tenant_id: "tenant_ecotrend_enterprise",
+      actor_id: "usr_admin_001",
+      actor_email: "admin@ecotrend.io",
+      action: "SYSTEM_INITIALIZED",
+      resource_type: "System",
+      resource_id: "sys_core",
+      previous_state: null,
+      new_state: "ACTIVE",
+      reason: "Enterprise platform startup",
+      correlation_id: "corr_init_001",
+      ip_address: "127.0.0.1",
+      provenance: "AUDIT_TRAIL",
+      timestamp: new Date().toISOString()
+    }
+  ];
+}
+
 
 

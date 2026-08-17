@@ -693,4 +693,74 @@ export interface DecisionAuditResponse {
   legal_disclaimer: string;
 }
 
+export interface UserItem {
+  id: string;
+  tenant_id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TenantItem {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AuditEventItem {
+  id: string;
+  tenant_id: string;
+  actor_id: string;
+  actor_email: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  previous_state?: string | null;
+  new_state?: string | null;
+  reason?: string | null;
+  correlation_id?: string | null;
+  ip_address?: string | null;
+  provenance: string;
+  timestamp: string;
+}
+
+export interface ApprovalRequestItem {
+  id: string;
+  tenant_id: string;
+  submitter_id: string;
+  approver_id?: string | null;
+  intervention_id: string;
+  title: string;
+  domain: string;
+  status: string;
+  estimated_cepi_improvement: number;
+  reason: string;
+  decision_reason?: string | null;
+  provenance: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SecuritySummaryItem {
+  active_users_count: number;
+  active_tenants_count: number;
+  pending_approvals_count: number;
+  audit_events_24h_count: number;
+  security_posture: string;
+  rbac_status: string;
+}
+
+export interface GovernanceOverviewItem {
+  tenant_id: string;
+  security_summary: SecuritySummaryItem;
+  pending_approvals: ApprovalRequestItem[];
+  recent_audit_events: AuditEventItem[];
+  users: UserItem[];
+}
+
+
 
