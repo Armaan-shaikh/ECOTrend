@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    container_name: ecotrend-db
+    environment:
+      POSTGRES_DB: ecotrend
+      POSTGRES_USER: ecotrend_user
+      POSTGRES_PASSWORD: ecotrend_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecotrend_user -d ecotrend"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecotrend-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://ecotrend_user:ecotrend_password@db:5432/ecotrend
+      - CWD_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ecotrend-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

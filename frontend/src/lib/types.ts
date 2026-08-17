@@ -1,0 +1,92 @@
+export interface LocationItem {
+  id: string;
+  name: string;
+  level: 'COUNTRY' | 'STATE' | 'CITY' | 'STATION';
+  parent_id?: string | null;
+  country_code?: string | null;
+  latitude: number;
+  longitude: number;
+  created_at?: string;
+  children_count?: number;
+}
+
+export interface LocationTreeItem extends LocationItem {
+  children: LocationTreeItem[];
+}
+
+export interface MeasurementItem {
+  id: string;
+  location_id: string;
+  domain: string;
+  metric: string;
+  value: number;
+  unit: string;
+  timestamp: string;
+  source: string;
+  data_quality: 'VALID' | 'SUSPECT' | 'INVALID';
+  raw_value?: number | null;
+}
+
+export interface DataQualityLogItem {
+  id: string;
+  location_id?: string | null;
+  metric: string;
+  timestamp: string;
+  rule_triggered: string;
+  original_value?: number | null;
+  action_taken: string;
+  details?: string | null;
+  created_at?: string;
+}
+
+export interface LinearTrendMetrics {
+  slope: number;
+  intercept: number;
+  r_squared: number;
+  p_value: number;
+  direction: 'IMPROVING' | 'STABLE' | 'DEGRADING';
+  annualized_change: number;
+}
+
+export interface VolatilityMetrics {
+  mean: number;
+  std_dev: number;
+  coefficient_of_variation: number;
+  min_value: number;
+  max_value: number;
+  median_value: number;
+}
+
+export interface AnomalyPoint {
+  timestamp: string;
+  value: number;
+  z_score: number;
+  reason: string;
+}
+
+export interface SeasonalityDecomposition {
+  timestamps: string[];
+  observed: number[];
+  trend: (number | null)[];
+  seasonal: (number | null)[];
+  residual: (number | null)[];
+  has_seasonality: boolean;
+}
+
+export interface HistoricalAnalyticsSummary {
+  location_id: string;
+  location_name: string;
+  metric: string;
+  unit: string;
+  start_time: string;
+  end_time: string;
+  total_observations: number;
+  valid_observations: number;
+  invalid_observations: number;
+  suspect_observations: number;
+  linear_trend: LinearTrendMetrics;
+  rate_of_change_percent: number;
+  volatility: VolatilityMetrics;
+  anomalies: AnomalyPoint[];
+  seasonality: SeasonalityDecomposition;
+}
