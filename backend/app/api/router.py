@@ -13,8 +13,10 @@ from app.api.emissions import router as emissions_router
 from app.api.noise import router as noise_router
 from app.api.multi_domain import router as multi_domain_router
 from app.api.compliance import router as compliance_router
+from app.api.health import router as health_router
 
 api_router = APIRouter()
+api_router.include_router(health_router)
 api_router.include_router(locations_router)
 api_router.include_router(measurements_router)
 api_router.include_router(analytics_router)

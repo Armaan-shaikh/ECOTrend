@@ -1,6 +1,18 @@
 import time
 import pytest
-from app.core.cache import cache_manager, cached_endpoint, make_cache_key
+from unittest.mock import MagicMock, patch
+from fastapi.testclient import TestClient
+from fastapi import FastAPI, Response, status
+
+from app.core.cache import cache_manager, cached_endpoint
+from app.core.database import get_db
+from app.api.router import api_router
+from app.api.health import get_liveness, get_readiness, get_overall_health
+
+# Setup test app for router testing
+app = FastAPI()
+app.include_router(api_router, prefix="/api/v1")
+client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def clear_caches_before_test():
@@ -8,6 +20,7 @@ def clear_caches_before_test():
     yield
     cache_manager.clear()
 
+# Cache Tests (Step 1)
 def test_cache_miss_executes_function():
     call_count = 0
 
@@ -88,7 +101,6 @@ def test_explicit_invalidation_removes_cached_values():
     assert call_count == 2
 
 def test_redis_failure_fallback():
-    # Force _use_redis = False to simulate Redis connection failure / fallback
     original_use_redis = cache_manager._use_redis
     cache_manager._use_redis = False
 
@@ -124,7 +136,6 @@ def test_exceptions_are_not_cached():
 
     assert call_count == 1
 
-    # Second call after failure must execute underlying function rather than returning cached error
     res2 = failing_func()
     assert call_count == 2
     assert res2 == {"status": "ok"}
@@ -165,3 +176,101 @@ def test_cache_serialization_preserves_structure():
     assert res2 == res1
     assert isinstance(res2["domains"], list)
     assert res2["subscores"]["air"]["is_valid"] is True
+
+
+# Health Probe Tests (Step 2)
+
+def test_liveness_returns_200():
+    res = client.get("/api/v1/health/liveness")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "alive"
+    assert "service" in data
+    assert "version" in data
+
+def test_liveness_performs_zero_db_redis_external_calls():
+    with patch("sqlalchemy.orm.Session.execute") as mock_db, \
+         patch("app.core.cache.CacheManager.get") as mock_redis, \
+         patch("httpx.AsyncClient.get") as mock_http:
+        res = client.get("/api/v1/health/liveness")
+        assert res.status_code == 200
+        mock_db.assert_not_called()
+        mock_redis.assert_not_called()
+        mock_http.assert_not_called()
+
+def test_readiness_reports_healthy_dependencies():
+    mock_db = MagicMock()
+    mock_db.execute().scalar.return_value = 1
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    res = client.get("/api/v1/health/readiness")
+    app.dependency_overrides.clear()
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["dependencies"]["database"] == "ok"
+    assert "redis" in data["dependencies"]
+    assert "external_apis" in data["dependencies"]
+
+def test_db_failure_reflected_in_readiness_not_liveness():
+    mock_db = MagicMock()
+    mock_db.execute.side_effect = Exception("DB Connection Lost")
+
+    # Liveness is unaffected by DB failure
+    res_live = client.get("/api/v1/health/liveness")
+    assert res_live.status_code == 200
+
+    # Readiness reflects DB failure (503 Service Unavailable)
+    app.dependency_overrides[get_db] = lambda: mock_db
+    res_ready = client.get("/api/v1/health/readiness")
+    app.dependency_overrides.clear()
+
+    assert res_ready.status_code == 503
+    data = res_ready.json()
+    assert data["status"] == "not_ready"
+    assert data["dependencies"]["database"] == "unavailable"
+
+def test_redis_failure_reflected_in_readiness_not_liveness():
+    mock_db = MagicMock()
+    mock_db.execute().scalar.return_value = 1
+
+    with patch("app.core.cache.CacheManager.is_redis_active", return_value=False):
+        app.dependency_overrides[get_db] = lambda: mock_db
+        res_ready = client.get("/api/v1/health/readiness")
+        app.dependency_overrides.clear()
+
+        assert res_ready.status_code == 200
+        data = res_ready.json()
+        assert data["dependencies"]["redis"] in ["degraded", "disabled"]
+
+def test_readiness_does_not_expose_secrets():
+    mock_db = MagicMock()
+    mock_db.execute().scalar.return_value = 1
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    res = client.get("/api/v1/health/readiness")
+    app.dependency_overrides.clear()
+
+    text_resp = res.text.lower()
+    assert "password" not in text_resp
+    assert "secret" not in text_resp
+    assert "postgresql://" not in text_resp
+
+def test_overall_health_endpoint():
+    mock_db = MagicMock()
+    mock_db.execute().scalar.return_value = 1
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    res = client.get("/api/v1/health")
+    app.dependency_overrides.clear()
+
+    assert res.status_code == 200
+    data = res.json()
+    assert "status" in data
+    assert "readiness" in data
+
+def test_health_routes_registered_under_prefix():
+    res_liveness = client.get("/api/v1/health/liveness")
+    res_readiness = client.get("/api/v1/health/readiness")
+    assert res_liveness.status_code == 200
+    assert res_readiness.status_code in [200, 503]
