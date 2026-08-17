@@ -1,3 +1,5 @@
+export type EnvironmentalDomain = 'air' | 'water';
+
 export interface LocationItem {
   id: string;
   name: string;
@@ -8,6 +10,7 @@ export interface LocationItem {
   longitude: number;
   created_at?: string;
   children_count?: number;
+  type?: string;
 }
 
 export interface LocationTreeItem extends LocationItem {
@@ -200,10 +203,10 @@ export interface StandardsInfoResponse {
   standards: Record<string, {
     metric: string;
     unit: string;
-    who_annual: number;
-    who_24h: number;
-    epa_good: number;
-    epa_moderate: number;
+    who_annual?: number;
+    who_24h?: number;
+    epa_good?: number;
+    epa_moderate?: number;
     standard_reference: string;
     weight: number;
     weight_rationale: string;
@@ -238,4 +241,22 @@ export interface LocationExplanationResponse {
   key_findings: string[];
   warnings: string[];
   methodology_note: string;
+}
+
+export interface WaterQualityScoreResponse {
+  overall_water_score: number;
+  category: string;
+  color: string;
+  health_impact: string;
+  data_coverage_percent: number;
+  primary_water_driver: string;
+  explanation: string;
+  metric_subscores: MetricSubScore[];
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
 }
