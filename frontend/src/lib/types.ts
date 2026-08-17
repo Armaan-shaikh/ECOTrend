@@ -1,4 +1,4 @@
-export type EnvironmentalDomain = 'air' | 'water' | 'soil';
+export type EnvironmentalDomain = 'air' | 'water' | 'soil' | 'climate';
 
 export interface LocationItem {
   id: string;
@@ -294,7 +294,45 @@ export interface SoilQualityScoreResponse {
   source_provenance: string;
   explanation: string;
   metric_subscores: MetricSubScore[];
-  reference_types: Record<string, string>;
+  reference_types?: Record<string, string>;
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
+}
+
+export interface ClimateQualityScoreResponse {
+  overall_climate_score: number;
+  category: string;
+  color: string;
+  health_impact: string;
+  data_coverage_percent: number;
+  data_type: string;
+  source_provenance: string;
+  explanation: string;
+  metric_subscores: MetricSubScore[];
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
+}
+
+export interface EmissionsQualityScoreResponse {
+  overall_emissions_score: number;
+  category: string;
+  color: string;
+  health_impact: string;
+  data_coverage_percent: number;
+  data_type: string;
+  source_provenance: string;
+  explanation: string;
+  metric_subscores: MetricSubScore[];
   methodology: {
     name: string;
     version: string;

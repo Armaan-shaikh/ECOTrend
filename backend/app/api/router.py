@@ -8,6 +8,8 @@ from app.api.health_score import router as health_score_router
 from app.api.explanations import router as explanations_router
 from app.api.water import router as water_router
 from app.api.soil import router as soil_router
+from app.api.climate import router as climate_router
+from app.api.emissions import router as emissions_router
 
 api_router = APIRouter()
 api_router.include_router(locations_router)
@@ -19,3 +21,5 @@ api_router.include_router(health_score_router)
 api_router.include_router(explanations_router)
 api_router.include_router(water_router)
 api_router.include_router(soil_router)
+api_router.include_router(climate_router)
+api_router.include_router(emissions_router)
