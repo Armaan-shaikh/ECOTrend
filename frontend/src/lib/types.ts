@@ -545,3 +545,85 @@ export interface ObservabilityOverviewResponse {
   recent_jobs: IngestionJobItem[];
   all_sources: SourceHealthItem[];
 }
+
+export interface PredictionPointItem {
+  timestamp: string;
+  forecast_value: number;
+  lower_ci: number;
+  upper_ci: number;
+  horizon_step_days: number;
+  provenance: string;
+}
+
+export interface AccuracyMetricsItem {
+  mae: number;
+  rmse: number;
+  mape_percent: number;
+}
+
+export interface ModelMetadataItem {
+  model_name: string;
+  accuracy_metrics: AccuracyMetricsItem;
+  sample_count: number;
+}
+
+export interface DomainForecastItem {
+  domain: string;
+  metric: string;
+  status: string;
+  horizon: string;
+  horizon_days: number;
+  projections: PredictionPointItem[];
+  model_metadata: ModelMetadataItem;
+  provenance: string;
+  data_limitations: string;
+}
+
+export interface PredictiveRiskItem {
+  domain: string;
+  metric: string;
+  forecast_value: number;
+  forecast_timestamp: string;
+  threshold: number;
+  threshold_direction: string;
+  unit: string;
+  severity: string;
+  reference_name: string;
+  reference_type: string;
+  jurisdiction: string;
+  event_type: string;
+  provenance: string;
+  explanation: string;
+}
+
+export interface ScenarioImpactItem {
+  domain: string;
+  baseline_score: number;
+  projected_score: number;
+  delta: number;
+  impact_category: string;
+}
+
+export interface ScenarioResponseItem {
+  location_id: string;
+  status: string;
+  provenance: string;
+  baseline_cepi_score: number;
+  projected_cepi_score: number;
+  cepi_delta: number;
+  overall_impact: string;
+  domain_impacts: ScenarioImpactItem[];
+  applied_interventions: Record<string, number>;
+  assumptions: string[];
+}
+
+export interface PredictiveOverviewItem {
+  location_id: string;
+  overall_predictive_status: string;
+  forecasted_cepi_score: number;
+  projected_cepi_trend: string;
+  active_forecasted_risks_count: number;
+  domain_forecasts: DomainForecastItem[];
+  forecasted_risks: PredictiveRiskItem[];
+}
+

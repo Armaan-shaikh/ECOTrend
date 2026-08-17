@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu } from 'lucide-react';
+import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu, Sparkles } from 'lucide-react';
 import { EnvironmentalDomain } from '../lib/types';
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
   onOpenAudit: () => void;
   onOpenReportModal: () => void;
   onOpenObservabilityModal: () => void;
+  onOpenPredictiveModal: () => void;
   isRefreshing: boolean;
 }
 
@@ -21,20 +22,21 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAudit,
   onOpenReportModal,
   onOpenObservabilityModal,
+  onOpenPredictiveModal,
   isRefreshing,
 }) => {
   return (
     <header className="bg-eco-card border-b border-eco-border px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-0 z-40 shadow-xl backdrop-blur-md bg-opacity-95">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-eco-accent via-eco-cyan to-eco-blue flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-eco-cyan to-eco-accent flex items-center justify-center shadow-lg shadow-purple-500/20">
             <Activity className="w-6 h-6 text-eco-bg stroke-[2.5]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-eco-text">EcoTrend</h1>
-              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 11 · Reliability Ops
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                Phase 12 · Predictive AI
               </span>
             </div>
             <p className="text-xs text-eco-muted font-medium">
@@ -120,6 +122,14 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenPredictiveModal}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-semibold text-purple-400 transition"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Predictive AI</span>
+        </button>
+
         <button
           onClick={onOpenObservabilityModal}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-eco-bg hover:bg-eco-hover border border-eco-border text-xs font-semibold text-emerald-400 transition"

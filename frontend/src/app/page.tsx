@@ -59,6 +59,10 @@ import { EHSReportExportModal } from '../components/EHSReportExportModal';
 import { ObservabilityDashboardCard } from '../components/ObservabilityDashboardCard';
 import { OperationalAlertsModal } from '../components/OperationalAlertsModal';
 
+// Predictive Intelligence Components (Phase 12)
+import { PredictiveOverviewCard } from '../components/PredictiveOverviewCard';
+import { ScenarioAnalysisModal } from '../components/ScenarioAnalysisModal';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -92,7 +96,8 @@ import {
   fetchDomainComparison,
   fetchComplianceAlerts,
   fetchObservabilityOverview,
-  fetchOperationalAlerts
+  fetchOperationalAlerts,
+  fetchPredictiveOverview
 } from '../lib/api';
 
 import {
@@ -116,7 +121,8 @@ import {
   DomainComparisonResponse,
   ComplianceOverviewResponse,
   ObservabilityOverviewResponse,
-  OperationalAlertItem
+  OperationalAlertItem,
+  PredictiveOverviewItem
 } from '../lib/types';
 
 import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2, Globe } from 'lucide-react';
@@ -187,6 +193,9 @@ export default function DashboardPage() {
   const [obsOverview, setObsOverview] = useState<ObservabilityOverviewResponse | null>(null);
   const [operationalAlerts, setOperationalAlerts] = useState<OperationalAlertItem[]>([]);
 
+  // Predictive Intelligence Data State (Phase 12)
+  const [predictiveData, setPredictiveData] = useState<PredictiveOverviewItem | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
@@ -198,6 +207,7 @@ export default function DashboardPage() {
   const [loadingNoise, setLoadingNoise] = useState<boolean>(true);
   const [loadingMultiDomain, setLoadingMultiDomain] = useState<boolean>(true);
   const [loadingObs, setLoadingObs] = useState<boolean>(true);
+  const [loadingPredictive, setLoadingPredictive] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -216,6 +226,7 @@ export default function DashboardPage() {
   const [isNoiseStandardsOpen, setIsNoiseStandardsOpen] = useState<boolean>(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState<boolean>(false);
+  const [isScenarioModalOpen, setIsScenarioModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -228,6 +239,7 @@ export default function DashboardPage() {
   useEffect(() => {
     loadComplianceData();
     loadObservabilityData();
+    loadPredictiveData();
 
     if (domain === 'overview') {
       loadMultiDomainData();
@@ -295,6 +307,18 @@ export default function DashboardPage() {
       console.error(e);
     } finally {
       setLoadingObs(false);
+    }
+  };
+
+  const loadPredictiveData = async () => {
+    setLoadingPredictive(true);
+    try {
+      const predRes = await fetchPredictiveOverview(selectedLocationId, '7D');
+      setPredictiveData(predRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingPredictive(false);
     }
   };
 
@@ -456,7 +480,7 @@ export default function DashboardPage() {
 
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadComplianceData(), loadObservabilityData()]);
+    await Promise.all([loadComplianceData(), loadObservabilityData(), loadPredictiveData()]);
 
     if (domain === 'overview') {
       await loadMultiDomainData();
@@ -484,10 +508,18 @@ export default function DashboardPage() {
         onOpenAudit={() => setIsAuditOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenObservabilityModal={() => setIsAlertsModalOpen(true)}
+        onOpenPredictiveModal={() => setIsScenarioModalOpen(true)}
         isRefreshing={isRefreshing}
       />
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* Phase 12: Predictive Environmental Intelligence & Decision Support Card */}
+        <PredictiveOverviewCard
+          predictiveData={predictiveData}
+          loading={loadingPredictive}
+          onOpenScenarioModal={() => setIsScenarioModalOpen(true)}
+        />
+
         {/* Phase 11: Real-time Platform Observability & Source Reliability Card */}
         <ObservabilityDashboardCard
           overview={obsOverview}
@@ -810,9 +842,9 @@ export default function DashboardPage() {
         {/* Footer Info */}
         <footer className="border-t border-eco-border/60 pt-6 mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-eco-muted gap-4">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-emerald-400" />
+            <Shield className="w-4 h-4 text-purple-400" />
             <span>
-              EcoTrend Phase 11 · <strong className="text-eco-text">Observability & Data Operations Platform</strong>
+              EcoTrend Phase 12 · <strong className="text-eco-text">Predictive Environmental Intelligence Platform</strong>
             </span>
           </div>
 
@@ -873,6 +905,12 @@ export default function DashboardPage() {
         onClose={() => setIsAlertsModalOpen(false)}
         alerts={operationalAlerts}
         onRefreshAlerts={loadObservabilityData}
+      />
+
+      <ScenarioAnalysisModal
+        isOpen={isScenarioModalOpen}
+        onClose={() => setIsScenarioModalOpen(false)}
+        locationId={selectedLocationId}
       />
     </div>
   );
