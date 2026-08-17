@@ -627,3 +627,70 @@ export interface PredictiveOverviewItem {
   forecasted_risks: PredictiveRiskItem[];
 }
 
+export interface DecisionRecommendationItem {
+  id: string;
+  location_id: string;
+  domain: string;
+  metric: string;
+  title: string;
+  priority_tier: string;
+  priority_score: number;
+  status: string;
+  severity: string;
+  confidence: number;
+  provenance: string;
+  rationale: string;
+  recommended_actions: string[];
+  created_at: string;
+  acknowledged_at?: string | null;
+  resolved_at?: string | null;
+  evidence_chain?: Record<string, any>;
+}
+
+export interface InterventionOptionItem {
+  id: string;
+  name: string;
+  domain: string;
+  target_metric: string;
+  description: string;
+  baseline_cepi_score: number;
+  projected_cepi_score: number;
+  estimated_cepi_improvement: number;
+  confidence: number;
+  assumptions: string[];
+  provenance: string;
+  disclaimer: string;
+}
+
+export interface DecisionOverviewResponse {
+  location_id: string;
+  system_decision_status: string;
+  total_active_recommendations: number;
+  critical_recommendations_count: number;
+  high_recommendations_count: number;
+  medium_recommendations_count: number;
+  recommendations: DecisionRecommendationItem[];
+  interventions_summary: InterventionOptionItem[];
+  disclaimer: string;
+}
+
+export interface DecisionChainStepItem {
+  step: number;
+  phase: string;
+  provenance: string;
+  detail: string;
+}
+
+export interface DecisionAuditResponse {
+  recommendation_id: string;
+  location_id: string;
+  domain: string;
+  title: string;
+  priority_tier: string;
+  priority_score: number;
+  decision_chain: DecisionChainStepItem[];
+  actionable_interventions: InterventionOptionItem[];
+  legal_disclaimer: string;
+}
+
+

@@ -31,7 +31,11 @@ import {
   PredictiveOverviewItem,
   DomainForecastItem,
   PredictiveRiskItem,
-  ScenarioResponseItem
+  ScenarioResponseItem,
+  DecisionOverviewResponse,
+  DecisionRecommendationItem,
+  InterventionOptionItem,
+  DecisionAuditResponse
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -543,6 +547,62 @@ export async function runScenarioSimulation(locationId: string, interventions: R
   }
 }
 
+/* Decision Automation & Adaptive Intelligence Methods (Phase 13) */
+
+export async function fetchDecisionOverview(locationId: string = 'loc_us_ny_nyc_manhattan'): Promise<DecisionOverviewResponse> {
+  try {
+    const res = await fetch(`${API_V1}/decision-support/overview?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch decision overview');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackDecisionOverview(locationId);
+  }
+}
+
+export async function fetchDecisionRecommendations(domain?: string, status: string = 'ACTIVE'): Promise<DecisionRecommendationItem[]> {
+  try {
+    const url = domain ? `${API_V1}/decision-support/recommendations?domain=${domain}&status=${status}` : `${API_V1}/decision-support/recommendations?status=${status}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch decision recommendations');
+    const data = await res.json();
+    return data.recommendations || [];
+  } catch (err) {
+    return generateFallbackDecisionOverview('loc_us_ny_nyc_manhattan').recommendations;
+  }
+}
+
+export async function acknowledgeDecisionRecommendation(id: string): Promise<DecisionRecommendationItem> {
+  const res = await fetch(`${API_V1}/decision-support/recommendations/${id}/acknowledge`, { method: 'POST' });
+  return await res.json();
+}
+
+export async function resolveDecisionRecommendation(id: string): Promise<DecisionRecommendationItem> {
+  const res = await fetch(`${API_V1}/decision-support/recommendations/${id}/resolve`, { method: 'POST' });
+  return await res.json();
+}
+
+export async function fetchInterventions(locationId: string = 'loc_us_ny_nyc_manhattan'): Promise<InterventionOptionItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/decision-support/interventions?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch interventions');
+    const data = await res.json();
+    return data.interventions || [];
+  } catch (err) {
+    return generateFallbackDecisionOverview(locationId).interventions_summary;
+  }
+}
+
+export async function fetchDecisionAudit(recommendationId: string = 'rec_comp_air_PM2.5_101'): Promise<DecisionAuditResponse> {
+  try {
+    const res = await fetch(`${API_V1}/decision-support/audit?recommendation_id=${recommendationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch decision audit');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackDecisionAudit(recommendationId);
+  }
+}
+
+
 
 export async function fetchMeasurements(locationId: string, metric: string = 'PM2.5', days: number = 30): Promise<MeasurementItem[]> {
   try {
@@ -794,4 +854,101 @@ function generateFallbackScenarioResponse(locationId: string, interventions: Rec
     ]
   };
 }
+
+function generateFallbackDecisionOverview(locationId: string): DecisionOverviewResponse {
+  return {
+    location_id: locationId,
+    system_decision_status: "ACTION_REQUIRED",
+    total_active_recommendations: 2,
+    critical_recommendations_count: 0,
+    high_recommendations_count: 2,
+    medium_recommendations_count: 0,
+    recommendations: [
+      {
+        id: "rec_comp_air_PM2.5_101",
+        location_id: locationId,
+        domain: "air",
+        metric: "PM2.5",
+        title: "Mitigate PM2.5 Exceedance Breach (WHO Air Quality Guidelines 2021)",
+        priority_tier: "HIGH",
+        priority_score: 76.5,
+        status: "ACTIVE",
+        severity: "WARNING",
+        confidence: 0.95,
+        provenance: "DECISION_SUPPORT",
+        rationale: "Observed PM2.5 value of 22.5 ug/m3 breaches WHO 24-hour guideline threshold of 15.0 ug/m3.",
+        recommended_actions: [
+          "Activate targeted urban low-emission transit corridor controls.",
+          "Notify regional EHS officer regarding WHO guideline threshold exceedance."
+        ],
+        created_at: new Date().toISOString(),
+        evidence_chain: {
+          observed_signal: { value: 22.5, unit: "ug/m3", provenance: "MEASURED" },
+          compliance_rule: { threshold: 15.0, reference: "WHO Air Quality Guidelines (2021)", reference_type: "GUIDELINE" }
+        }
+      },
+      {
+        id: "rec_pred_water_DO_102",
+        location_id: locationId,
+        domain: "water",
+        metric: "DO",
+        title: "Early Warning: Projected Dissolved Oxygen Hypoxia Risk on 2026-08-20",
+        priority_tier: "HIGH",
+        priority_score: 72.0,
+        status: "ACTIVE",
+        severity: "WARNING",
+        confidence: 0.85,
+        provenance: "DECISION_SUPPORT",
+        rationale: "Projected Dissolved Oxygen value of 4.2 mg/L expected to drop below EcoTrend Hypoxia criteria of 5.0 mg/L.",
+        recommended_actions: [
+          "Deploy micro-bubble mechanical aeration units in Hudson estuary sector.",
+          "Run what-if scenario simulations to evaluate aeration impact."
+        ],
+        created_at: new Date().toISOString(),
+        evidence_chain: {
+          forecast_signal: { projected_value: 4.2, timestamp: "2026-08-20T00:00:00Z", provenance: "FORECAST" },
+          compliance_rule: { threshold: 5.0, reference: "EcoTrend Hypoxia Criteria" }
+        }
+      }
+    ],
+    interventions_summary: [
+      {
+        id: "int_air_traffic",
+        name: "Urban Traffic Low-Emission Zone & Signal Optimization",
+        domain: "air",
+        target_metric: "PM2.5",
+        description: "Deploy low-emission vehicle corridors and adaptive traffic signals.",
+        baseline_cepi_score: 81.0,
+        projected_cepi_score: 84.5,
+        estimated_cepi_improvement: 3.5,
+        confidence: 0.88,
+        assumptions: ["Assumes 25% traffic volume reduction in central monitoring sector."],
+        provenance: "DECISION_SUPPORT",
+        disclaimer: "Intervention projections evaluate decision-support scenarios."
+      }
+    ],
+    disclaimer: "Decision Support recommendations provide automated intelligence to assist human EHS managers."
+  };
+}
+
+function generateFallbackDecisionAudit(recommendationId: string): DecisionAuditResponse {
+  return {
+    recommendation_id: recommendationId,
+    location_id: "loc_us_ny_nyc_manhattan",
+    domain: "air",
+    title: "Mitigate PM2.5 Exceedance Breach (WHO Air Quality Guidelines 2021)",
+    priority_tier: "HIGH",
+    priority_score: 76.5,
+    decision_chain: [
+      { step: 1, phase: "OBSERVATION", provenance: "MEASURED", detail: "Observed signal: 22.5 ug/m3" },
+      { step: 2, phase: "FORECAST_PROJECTION", provenance: "FORECAST", detail: "Projected value: 24.2 ug/m3" },
+      { step: 3, phase: "COMPLIANCE_EVALUATION", provenance: "COMPLIANCE", detail: "WHO Air Quality Guidelines (2021) (Threshold: 15.0 ug/m3)" },
+      { step: 4, phase: "ADAPTIVE_PRIORITIZATION", provenance: "DERIVED", detail: "Calculated Priority Score: 76.5 (HIGH Tier)" },
+      { step: 5, phase: "RECOMMENDATION_GENERATION", provenance: "DECISION_SUPPORT", detail: "Observed PM2.5 breaches WHO guideline threshold." }
+    ],
+    actionable_interventions: generateFallbackDecisionOverview("loc_us_ny_nyc_manhattan").interventions_summary,
+    legal_disclaimer: "Decision Support recommendations assist human EHS managers and do not substitute for statutory orders."
+  };
+}
+
 

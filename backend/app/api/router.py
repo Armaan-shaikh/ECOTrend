@@ -16,6 +16,7 @@ from app.api.compliance import router as compliance_router
 from app.api.health import router as health_router
 from app.api.observability import router as observability_router
 from app.api.predictions import router as predictions_router
+from app.api.decision_support import router as decision_support_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -35,3 +36,4 @@ api_router.include_router(multi_domain_router)
 api_router.include_router(compliance_router)
 api_router.include_router(observability_router)
 api_router.include_router(predictions_router)
+api_router.include_router(decision_support_router)

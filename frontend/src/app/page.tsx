@@ -63,6 +63,10 @@ import { OperationalAlertsModal } from '../components/OperationalAlertsModal';
 import { PredictiveOverviewCard } from '../components/PredictiveOverviewCard';
 import { ScenarioAnalysisModal } from '../components/ScenarioAnalysisModal';
 
+// Decision Automation Components (Phase 13)
+import { DecisionSupportDashboard } from '../components/DecisionSupportDashboard';
+import { DecisionEvidencePanel } from '../components/DecisionEvidencePanel';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -97,7 +101,10 @@ import {
   fetchComplianceAlerts,
   fetchObservabilityOverview,
   fetchOperationalAlerts,
-  fetchPredictiveOverview
+  fetchPredictiveOverview,
+  fetchDecisionOverview,
+  acknowledgeDecisionRecommendation,
+  resolveDecisionRecommendation
 } from '../lib/api';
 
 import {
@@ -122,7 +129,8 @@ import {
   ComplianceOverviewResponse,
   ObservabilityOverviewResponse,
   OperationalAlertItem,
-  PredictiveOverviewItem
+  PredictiveOverviewItem,
+  DecisionOverviewResponse
 } from '../lib/types';
 
 import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2, Globe } from 'lucide-react';
@@ -196,6 +204,10 @@ export default function DashboardPage() {
   // Predictive Intelligence Data State (Phase 12)
   const [predictiveData, setPredictiveData] = useState<PredictiveOverviewItem | null>(null);
 
+  // Decision Support Data State (Phase 13)
+  const [decisionData, setDecisionData] = useState<DecisionOverviewResponse | null>(null);
+  const [selectedAuditRecId, setSelectedAuditRecId] = useState<string | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
@@ -208,6 +220,7 @@ export default function DashboardPage() {
   const [loadingMultiDomain, setLoadingMultiDomain] = useState<boolean>(true);
   const [loadingObs, setLoadingObs] = useState<boolean>(true);
   const [loadingPredictive, setLoadingPredictive] = useState<boolean>(true);
+  const [loadingDecision, setLoadingDecision] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -227,6 +240,7 @@ export default function DashboardPage() {
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState<boolean>(false);
   const [isScenarioModalOpen, setIsScenarioModalOpen] = useState<boolean>(false);
+  const [isDecisionAuditModalOpen, setIsDecisionAuditModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -240,6 +254,7 @@ export default function DashboardPage() {
     loadComplianceData();
     loadObservabilityData();
     loadPredictiveData();
+    loadDecisionData();
 
     if (domain === 'overview') {
       loadMultiDomainData();
@@ -319,6 +334,18 @@ export default function DashboardPage() {
       console.error(e);
     } finally {
       setLoadingPredictive(false);
+    }
+  };
+
+  const loadDecisionData = async () => {
+    setLoadingDecision(true);
+    try {
+      const decRes = await fetchDecisionOverview(selectedLocationId);
+      setDecisionData(decRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingDecision(false);
     }
   };
 
@@ -480,7 +507,7 @@ export default function DashboardPage() {
 
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadComplianceData(), loadObservabilityData(), loadPredictiveData()]);
+    await Promise.all([loadComplianceData(), loadObservabilityData(), loadPredictiveData(), loadDecisionData()]);
 
     if (domain === 'overview') {
       await loadMultiDomainData();
@@ -498,6 +525,21 @@ export default function DashboardPage() {
     setIsRefreshing(false);
   };
 
+  const handleAcknowledgeRec = async (id: string) => {
+    await acknowledgeDecisionRecommendation(id);
+    loadDecisionData();
+  };
+
+  const handleResolveRec = async (id: string) => {
+    await resolveDecisionRecommendation(id);
+    loadDecisionData();
+  };
+
+  const handleOpenDecisionAudit = (id: string) => {
+    setSelectedAuditRecId(id);
+    setIsDecisionAuditModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-eco-bg flex flex-col font-sans">
       {/* Top Navigation Bar with Domain Switcher & Ops Controls */}
@@ -509,10 +551,21 @@ export default function DashboardPage() {
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenObservabilityModal={() => setIsAlertsModalOpen(true)}
         onOpenPredictiveModal={() => setIsScenarioModalOpen(true)}
+        onOpenDecisionModal={() => handleOpenDecisionAudit('rec_comp_air_PM2.5_101')}
         isRefreshing={isRefreshing}
       />
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* Phase 13: Advanced Environmental Decision Automation & Adaptive Intelligence Dashboard */}
+        <DecisionSupportDashboard
+          decisionData={decisionData}
+          loading={loadingDecision}
+          onAcknowledge={handleAcknowledgeRec}
+          onResolve={handleResolveRec}
+          onOpenAudit={handleOpenDecisionAudit}
+          onOpenScenarioModal={() => setIsScenarioModalOpen(true)}
+        />
+
         {/* Phase 12: Predictive Environmental Intelligence & Decision Support Card */}
         <PredictiveOverviewCard
           predictiveData={predictiveData}
@@ -842,9 +895,9 @@ export default function DashboardPage() {
         {/* Footer Info */}
         <footer className="border-t border-eco-border/60 pt-6 mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-eco-muted gap-4">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-purple-400" />
+            <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 12 · <strong className="text-eco-text">Predictive Environmental Intelligence Platform</strong>
+              EcoTrend Phase 13 · <strong className="text-eco-text">Advanced Environmental Decision Automation Platform</strong>
             </span>
           </div>
 
@@ -911,6 +964,12 @@ export default function DashboardPage() {
         isOpen={isScenarioModalOpen}
         onClose={() => setIsScenarioModalOpen(false)}
         locationId={selectedLocationId}
+      />
+
+      <DecisionEvidencePanel
+        isOpen={isDecisionAuditModalOpen}
+        onClose={() => setIsDecisionAuditModalOpen(false)}
+        recommendationId={selectedAuditRecId}
       />
     </div>
   );
