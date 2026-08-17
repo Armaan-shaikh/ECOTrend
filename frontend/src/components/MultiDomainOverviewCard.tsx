@@ -87,9 +87,9 @@ export const MultiDomainOverviewCard: React.FC<MultiDomainOverviewCardProps> = (
       {/* Right Column: Coverage & Multi-Domain Attribution */}
       <div className="flex flex-col items-start md:items-end justify-between gap-3 w-full md:w-auto border-t md:border-t-0 border-eco-border pt-4 md:pt-0">
         <div className="text-left md:text-right">
-          <div className="text-[11px] font-bold text-eco-muted uppercase tracking-wider">Dynamic Coverage Weighting</div>
+          <div className="text-[11px] font-bold text-eco-muted uppercase tracking-wider">CEPI Domain-Weight Coverage</div>
           <div className="text-xs font-mono font-bold text-eco-text">
-            {data_coverage_percent}% Coverage · <span className="text-eco-muted">Re-normalized Weights</span>
+            {data_coverage_percent}% Weight Coverage · <span className="text-eco-muted">Re-normalized Weights</span>
           </div>
         </div>
 
