@@ -38,6 +38,12 @@ import { EmissionsScoreCard } from '../components/EmissionsScoreCard';
 import { ClimateGlossaryPanel } from '../components/ClimateGlossaryPanel';
 import { ClimateStandardsModal } from '../components/ClimateStandardsModal';
 
+// Noise Components (Phase 7)
+import { NoiseScoreCard } from '../components/NoiseScoreCard';
+import { NoiseSubScoreCards } from '../components/NoiseSubScoreCards';
+import { NoiseGlossaryPanel } from '../components/NoiseGlossaryPanel';
+import { NoiseStandardsModal } from '../components/NoiseStandardsModal';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -62,7 +68,10 @@ import {
   fetchClimateStations,
   fetchClimateQualityScore,
   fetchHistoricalClimateAnalytics,
-  fetchEmissionsQualityScore
+  fetchEmissionsQualityScore,
+  fetchNoiseStations,
+  fetchNoiseQualityScore,
+  fetchHistoricalNoiseAnalytics
 } from '../lib/api';
 
 import {
@@ -79,10 +88,11 @@ import {
   ForecastWaterScoreResponse,
   SoilQualityScoreResponse,
   ClimateQualityScoreResponse,
-  EmissionsQualityScoreResponse
+  EmissionsQualityScoreResponse,
+  NoiseQualityScoreResponse
 } from '../lib/types';
 
-import { Shield, Layers, Droplet, Wind, Database, Sun } from 'lucide-react';
+import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2 } from 'lucide-react';
 
 export default function DashboardPage() {
   const [domain, setDomain] = useState<EnvironmentalDomain>('air');
@@ -104,10 +114,15 @@ export default function DashboardPage() {
   const [selectedSoilStationId, setSelectedSoilStationId] = useState<string>('loc_us_ny_hudson_soil');
   const [selectedSoilMetric, setSelectedSoilMetric] = useState<string>('SOC');
 
-  // Climate Domain State (Phase 6A)
+  // Climate Domain State
   const [climateStations, setClimateStations] = useState<LocationItem[]>([]);
   const [selectedClimateStationId, setSelectedClimateStationId] = useState<string>('loc_us_ny_nyc_climate');
   const [selectedClimateMetric, setSelectedClimateMetric] = useState<string>('T2M');
+
+  // Noise Domain State (Phase 7)
+  const [noiseStations, setNoiseStations] = useState<LocationItem[]>([]);
+  const [selectedNoiseStationId, setSelectedNoiseStationId] = useState<string>('loc_us_ny_nyc_manhattan_noise');
+  const [selectedNoiseMetric, setSelectedNoiseMetric] = useState<string>('NOISE_INCIDENTS');
 
   // Data States
   const [analytics, setAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
@@ -130,6 +145,9 @@ export default function DashboardPage() {
   const [emissionsScore, setEmissionsScore] = useState<EmissionsQualityScoreResponse | null>(null);
   const [climateAnalytics, setClimateAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
 
+  const [noiseScore, setNoiseScore] = useState<NoiseQualityScoreResponse | null>(null);
+  const [noiseAnalytics, setNoiseAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
@@ -138,6 +156,7 @@ export default function DashboardPage() {
   const [loadingWaterForecast, setLoadingWaterForecast] = useState<boolean>(true);
   const [loadingSoil, setLoadingSoil] = useState<boolean>(true);
   const [loadingClimate, setLoadingClimate] = useState<boolean>(true);
+  const [loadingNoise, setLoadingNoise] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -153,12 +172,14 @@ export default function DashboardPage() {
   const [isWaterStandardsOpen, setIsWaterStandardsOpen] = useState<boolean>(false);
   const [isSoilStandardsOpen, setIsSoilStandardsOpen] = useState<boolean>(false);
   const [isClimateStandardsOpen, setIsClimateStandardsOpen] = useState<boolean>(false);
+  const [isNoiseStandardsOpen, setIsNoiseStandardsOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
     loadWaterStations();
     loadSoilStations();
     loadClimateStations();
+    loadNoiseStations();
   }, []);
 
   useEffect(() => {
@@ -172,10 +193,12 @@ export default function DashboardPage() {
       loadWaterForecastData();
     } else if (domain === 'soil') {
       loadSoilData();
-    } else {
+    } else if (domain === 'climate') {
       loadClimateData();
+    } else {
+      loadNoiseData();
     }
-  }, [domain, selectedLocationId, selectedMetric, selectedDays, selectedHorizon, selectedWaterStationId, selectedWaterMetric, selectedSoilStationId, selectedSoilMetric, selectedClimateStationId, selectedClimateMetric]);
+  }, [domain, selectedLocationId, selectedMetric, selectedDays, selectedHorizon, selectedWaterStationId, selectedWaterMetric, selectedSoilStationId, selectedSoilMetric, selectedClimateStationId, selectedClimateMetric, selectedNoiseStationId, selectedNoiseMetric]);
 
   const loadTree = async () => {
     const data = await fetchLocationTree();
@@ -195,6 +218,11 @@ export default function DashboardPage() {
   const loadClimateStations = async () => {
     const st = await fetchClimateStations();
     setClimateStations(st);
+  };
+
+  const loadNoiseStations = async () => {
+    const st = await fetchNoiseStations();
+    setNoiseStations(st);
   };
 
   const loadAnalytics = async () => {
@@ -319,6 +347,22 @@ export default function DashboardPage() {
     }
   };
 
+  const loadNoiseData = async () => {
+    setLoadingNoise(true);
+    try {
+      const [scoreRes, analyticsRes] = await Promise.all([
+        fetchNoiseQualityScore(selectedNoiseStationId),
+        fetchHistoricalNoiseAnalytics(selectedNoiseStationId, selectedNoiseMetric, selectedDays)
+      ]);
+      setNoiseScore(scoreRes);
+      setNoiseAnalytics(analyticsRes);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingNoise(false);
+    }
+  };
+
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
     if (domain === 'air') {
@@ -327,8 +371,10 @@ export default function DashboardPage() {
       await Promise.all([loadWaterData(), loadWaterForecastData()]);
     } else if (domain === 'soil') {
       await loadSoilData();
-    } else {
+    } else if (domain === 'climate') {
       await loadClimateData();
+    } else {
+      await loadNoiseData();
     }
     setIsRefreshing(false);
   };
@@ -530,8 +576,8 @@ export default function DashboardPage() {
 
             <SoilGlossaryPanel />
           </>
-        ) : (
-          /* CLIMATE & EMISSIONS DOMAIN DASHBOARD (Phase 6A) */
+        ) : domain === 'climate' ? (
+          /* CLIMATE & EMISSIONS DOMAIN DASHBOARD */
           <>
             <div className="bg-eco-card border border-eco-border rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -567,32 +613,74 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Climate Quality Index Score */}
-            <ClimateScoreCard
-              climateScore={climateScore}
-              loading={loadingClimate}
-              onOpenMethodology={() => setIsClimateStandardsOpen(true)}
-            />
-
-            {/* Climate Metric Sub-Score Cards */}
+            <ClimateScoreCard climateScore={climateScore} loading={loadingClimate} onOpenMethodology={() => setIsClimateStandardsOpen(true)} />
             {climateScore && <ClimateSubScoreCards subscores={climateScore.metric_subscores} />}
-
-            {/* Emissions Sustainability Score Card */}
-            <EmissionsScoreCard
-              emissionsScore={emissionsScore}
-              loading={loadingClimate}
-            />
-
-            {/* Key Metrics Overview */}
+            <EmissionsScoreCard emissionsScore={emissionsScore} loading={loadingClimate} />
             <MetricsOverview analytics={climateAnalytics} loading={loadingClimate} />
 
-            {/* Historical Analytics Time-Series Chart */}
             <div className="bg-eco-card border border-eco-border rounded-2xl p-6 shadow-lg">
               <HistoricalAnalyticsChart analytics={climateAnalytics} loading={loadingClimate} />
             </div>
 
-            {/* Plain-Language Climate Glossary */}
             <ClimateGlossaryPanel />
+          </>
+        ) : (
+          /* NOISE & ACOUSTIC DISTURBANCE DOMAIN DASHBOARD (Phase 7) */
+          <>
+            <div className="bg-eco-card border border-eco-border rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <Volume2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-eco-text">Acoustic Monitoring Site Selector</h2>
+                  <p className="text-xs text-eco-muted">Phase 7 · Acoustic Disturbance Intelligence Pipeline</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                <select
+                  value={selectedNoiseStationId}
+                  onChange={(e) => setSelectedNoiseStationId(e.target.value)}
+                  className="bg-eco-bg border border-eco-border text-eco-text rounded-xl px-3 py-2 focus:outline-none focus:border-purple-400 font-sans"
+                >
+                  {noiseStations.map((st) => (
+                    <option key={st.id} value={st.id}>{st.name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedNoiseMetric}
+                  onChange={(e) => setSelectedNoiseMetric(e.target.value)}
+                  className="bg-eco-bg border border-eco-border text-eco-text rounded-xl px-3 py-2 focus:outline-none focus:border-purple-400 font-mono"
+                >
+                  {['NOISE_INCIDENTS'].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Acoustic Disturbance Index Score */}
+            <NoiseScoreCard
+              noiseScore={noiseScore}
+              loading={loadingNoise}
+              onOpenMethodology={() => setIsNoiseStandardsOpen(true)}
+            />
+
+            {/* Acoustic Metric Sub-Score Cards & Explicit UNAVAILABLE dBA Badges */}
+            {noiseScore && <NoiseSubScoreCards subscores={noiseScore.metric_subscores} />}
+
+            {/* Key Metrics Summary Overview */}
+            <MetricsOverview analytics={noiseAnalytics} loading={loadingNoise} />
+
+            {/* Historical Noise Analytics Time-Series Chart */}
+            <div className="bg-eco-card border border-eco-border rounded-2xl p-6 shadow-lg">
+              <HistoricalAnalyticsChart analytics={noiseAnalytics} loading={loadingNoise} />
+            </div>
+
+            {/* Plain-Language Acoustic Glossary */}
+            <NoiseGlossaryPanel />
           </>
         )}
 
@@ -601,7 +689,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 6A · <strong className="text-eco-text">Climate & Emissions Intelligence Pipeline</strong>
+              EcoTrend Phase 7 · <strong className="text-eco-text">Acoustic Disturbance Intelligence Pipeline</strong>
             </span>
           </div>
 
@@ -617,7 +705,7 @@ export default function DashboardPage() {
       <DataAuditDrawer
         isOpen={isAuditOpen}
         onClose={() => setIsAuditOpen(false)}
-        selectedLocationId={domain === 'air' ? selectedLocationId : domain === 'water' ? selectedWaterStationId : domain === 'soil' ? selectedSoilStationId : selectedClimateStationId}
+        selectedLocationId={domain === 'air' ? selectedLocationId : domain === 'water' ? selectedWaterStationId : domain === 'soil' ? selectedSoilStationId : domain === 'climate' ? selectedClimateStationId : selectedNoiseStationId}
       />
 
       <BacktestScorecardDrawer
@@ -644,6 +732,11 @@ export default function DashboardPage() {
       <ClimateStandardsModal
         isOpen={isClimateStandardsOpen}
         onClose={() => setIsClimateStandardsOpen(false)}
+      />
+
+      <NoiseStandardsModal
+        isOpen={isNoiseStandardsOpen}
+        onClose={() => setIsNoiseStandardsOpen(false)}
       />
     </div>
   );

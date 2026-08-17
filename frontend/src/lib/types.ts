@@ -1,4 +1,4 @@
-export type EnvironmentalDomain = 'air' | 'water' | 'soil' | 'climate';
+export type EnvironmentalDomain = 'air' | 'water' | 'soil' | 'climate' | 'noise';
 
 export interface LocationItem {
   id: string;
@@ -333,6 +333,26 @@ export interface EmissionsQualityScoreResponse {
   source_provenance: string;
   explanation: string;
   metric_subscores: MetricSubScore[];
+  methodology: {
+    name: string;
+    version: string;
+    description: string;
+    attribution_notice: string;
+    last_updated: string;
+  };
+}
+
+export interface NoiseQualityScoreResponse {
+  overall_noise_score: number;
+  category: string;
+  color: string;
+  health_impact: string;
+  data_coverage_percent: number;
+  data_type: string;
+  source_provenance: string;
+  explanation: string;
+  metric_subscores: MetricSubScore[];
+  contextual_decibel_guidelines: Record<string, any>;
   methodology: {
     name: string;
     version: string;

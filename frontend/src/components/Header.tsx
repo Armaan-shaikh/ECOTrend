@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun } from 'lucide-react';
+import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2 } from 'lucide-react';
 import { EnvironmentalDomain } from '../lib/types';
 
 interface HeaderProps {
@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-eco-text">EcoTrend</h1>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 6A · Multi-Domain
+                Phase 7 · Multi-Domain
               </span>
             </div>
             <p className="text-xs text-eco-muted font-medium">
@@ -87,6 +87,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sun className="w-3.5 h-3.5" />
             Climate & Emissions
+          </button>
+
+          <button
+            onClick={() => onSelectDomain('noise')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+              domain === 'noise'
+                ? 'bg-eco-cyan text-eco-bg shadow-sm'
+                : 'text-eco-muted hover:text-eco-text'
+            }`}
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            Noise Quality
           </button>
         </div>
       </div>
