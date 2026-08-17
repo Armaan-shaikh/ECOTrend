@@ -12,6 +12,10 @@ import { ForecastChart } from '../components/ForecastChart';
 import { EHSGaugeCard } from '../components/EHSGaugeCard';
 import { SubScoreCards } from '../components/SubScoreCards';
 import { EHSForecastChart } from '../components/EHSForecastChart';
+import { EnvironmentalSummaryCard } from '../components/EnvironmentalSummaryCard';
+import { KeyFindingsPanel } from '../components/KeyFindingsPanel';
+import { ScenarioExplanationCard } from '../components/ScenarioExplanationCard';
+import { MetricGlossaryPanel } from '../components/MetricGlossaryPanel';
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -22,7 +26,8 @@ import {
   fetchForecastProjections,
   fetchCurrentHealthScore,
   fetchHistoricalHealthScore,
-  fetchForecastHealthScore
+  fetchForecastHealthScore,
+  fetchLocationExplanations
 } from '../lib/api';
 
 import {
@@ -31,7 +36,8 @@ import {
   ForecastProjectionResponse,
   AggregateEHSResponse,
   HistoricalEHSPoint,
-  ForecastEHSResponse
+  ForecastEHSResponse,
+  LocationExplanationResponse
 } from '../lib/types';
 
 import { Shield, Layers, RefreshCw } from 'lucide-react';
@@ -43,18 +49,18 @@ export default function DashboardPage() {
   const [selectedDays, setSelectedDays] = useState<number>(90);
   const [selectedHorizon, setSelectedHorizon] = useState<string>('1_YEAR');
 
-  // Analytics & Forecast state
+  // Analytics, Forecast, EHS, and Explanations state
   const [analytics, setAnalytics] = useState<HistoricalAnalyticsSummary | null>(null);
   const [forecast, setForecast] = useState<ForecastProjectionResponse | null>(null);
-
-  // EHS State (Phase 3A)
   const [ehsData, setEhsData] = useState<AggregateEHSResponse | null>(null);
   const [historicalEHS, setHistoricalEHS] = useState<HistoricalEHSPoint[]>([]);
   const [forecastEHS, setForecastEHS] = useState<ForecastEHSResponse | null>(null);
+  const [explanations, setExplanations] = useState<LocationExplanationResponse | null>(null);
 
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
+  const [loadingExplanations, setLoadingExplanations] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Scenario Toggles
@@ -76,6 +82,7 @@ export default function DashboardPage() {
     loadAnalytics();
     loadForecast();
     loadEHS();
+    loadExplanations();
   }, [selectedLocationId, selectedMetric, selectedDays, selectedHorizon]);
 
   const loadTree = async () => {
@@ -125,9 +132,21 @@ export default function DashboardPage() {
     }
   };
 
+  const loadExplanations = async () => {
+    setLoadingExplanations(true);
+    try {
+      const data = await fetchLocationExplanations(selectedLocationId, selectedMetric, selectedDays, selectedHorizon);
+      setExplanations(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingExplanations(false);
+    }
+  };
+
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadAnalytics(), loadForecast(), loadEHS()]);
+    await Promise.all([loadAnalytics(), loadForecast(), loadEHS(), loadExplanations()]);
     setIsRefreshing(false);
   };
 
@@ -152,20 +171,32 @@ export default function DashboardPage() {
           onSelectDays={setSelectedDays}
         />
 
-        {/* 2. Environmental Health Score (EHS 0–100) Banner (Phase 3A) */}
+        {/* 2. Deterministic Environmental Report Banner (Phase 3B) */}
+        <EnvironmentalSummaryCard
+          explanations={explanations}
+          loading={loadingExplanations}
+        />
+
+        {/* 3. Prioritized Key Findings & Warnings (Phase 3B) */}
+        <KeyFindingsPanel
+          explanations={explanations}
+          loading={loadingExplanations}
+        />
+
+        {/* 4. Environmental Health Score (EHS 0–100) Gauge (Phase 3A) */}
         <EHSGaugeCard
           ehsData={ehsData}
           loading={loadingEHS}
           onOpenMethodology={() => setIsMethodologyOpen(true)}
         />
 
-        {/* 3. Pollutant Sub-Score Cards (PM2.5, PM10, NO2, O3, SO2, CO) */}
+        {/* 5. Pollutant Sub-Score Breakdown Cards */}
         {ehsData && <SubScoreCards subscores={ehsData.metric_subscores} />}
 
-        {/* 4. Key Metrics & Stat Summary Grid */}
+        {/* 6. Key Metrics & Stat Summary Grid */}
         <MetricsOverview analytics={analytics} loading={loadingAnalytics} />
 
-        {/* 5. Forecast & Scenario Projection Controls */}
+        {/* 7. Forecast & Scenario Projection Controls */}
         <ForecastControls
           selectedHorizon={selectedHorizon}
           showBaseline={showBaseline}
@@ -181,14 +212,14 @@ export default function DashboardPage() {
           onOpenScorecard={() => setIsScorecardOpen(true)}
         />
 
-        {/* 6. Forecast-Linked EHS Projections Chart (Phase 3A) */}
+        {/* 8. Forecast-Linked EHS Projections Chart */}
         <EHSForecastChart
           forecastEHS={forecastEHS}
           historicalEHS={historicalEHS}
           loading={loadingEHS}
         />
 
-        {/* 7. Main Multi-Scenario Forecast Chart (Concentrations) */}
+        {/* 9. Multi-Scenario Forecast Chart (Concentrations) */}
         <ForecastChart
           forecast={forecast}
           historical={analytics}
@@ -199,7 +230,10 @@ export default function DashboardPage() {
           showCI={showCI}
         />
 
-        {/* 8. Main Dashboard Grid: Spatial Map & Historical Time-Series */}
+        {/* 10. Forecast Scenario Definitions & Caveats (Phase 3B) */}
+        <ScenarioExplanationCard />
+
+        {/* 11. Main Dashboard Grid: Spatial Map & Historical Time-Series */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* Spatial Station Map (5 Cols) */}
           <div className="lg:col-span-5 h-[420px] lg:h-auto">
@@ -216,15 +250,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 9. Seasonality Component Decomposition */}
+        {/* 12. Seasonality Component Decomposition */}
         <SeasonalityChart analytics={analytics} loading={loadingAnalytics} />
 
-        {/* 10. Footer Info */}
+        {/* 13. Plain-English Scientific Metric Glossary (Phase 3B) */}
+        {explanations && <MetricGlossaryPanel metrics={explanations.metric_explanations} />}
+
+        {/* 14. Footer Info */}
         <footer className="border-t border-eco-border/60 pt-6 mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-eco-muted gap-4">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 3A · <strong className="text-eco-text">Environmental Health Score Engine (Methodology v1.0)</strong>
+              EcoTrend Phase 3B · <strong className="text-eco-text">Deterministic Explanation & Insight Engine (No LLM)</strong>
             </span>
           </div>
 
@@ -236,7 +273,7 @@ export default function DashboardPage() {
         </footer>
       </main>
 
-      {/* Data Quality Slide-over Audit Inspector */}
+      {/* Slide-over Audit Inspector */}
       <DataAuditDrawer
         isOpen={isAuditOpen}
         onClose={() => setIsAuditOpen(false)}

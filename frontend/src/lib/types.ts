@@ -216,3 +216,26 @@ export interface StandardsInfoResponse {
     health_impact: string;
   }>;
 }
+
+export interface MetricDefinitionItem {
+  metric: string;
+  title: string;
+  definition: string;
+  common_sources: string;
+  health_relevance: string;
+}
+
+export interface LocationExplanationResponse {
+  location_name: string;
+  summary: string;
+  current_condition: string;
+  historical_trend: string;
+  primary_driver: string;
+  forecast_outlook: string;
+  scenario_comparison: string;
+  data_quality_note: string;
+  metric_explanations: MetricDefinitionItem[];
+  key_findings: string[];
+  warnings: string[];
+  methodology_note: string;
+}

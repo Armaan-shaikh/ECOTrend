@@ -5,6 +5,7 @@ from app.api.analytics import router as analytics_router
 from app.api.ingestion import router as ingestion_router
 from app.api.forecast import router as forecast_router
 from app.api.health_score import router as health_score_router
+from app.api.explanations import router as explanations_router
 
 api_router = APIRouter()
 api_router.include_router(locations_router)
@@ -13,3 +14,4 @@ api_router.include_router(analytics_router)
 api_router.include_router(ingestion_router)
 api_router.include_router(forecast_router)
 api_router.include_router(health_score_router)
+api_router.include_router(explanations_router)
