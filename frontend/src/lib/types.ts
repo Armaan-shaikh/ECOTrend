@@ -814,6 +814,27 @@ export interface WebhookSubscriptionItem {
   created_at: string;
 }
 
+export interface DeadLetterItem {
+  id: string;
+  tenant_id: string;
+  workflow_id: string;
+  event_type: string;
+  reason: string;
+  status: string;
+  created_at: string;
+  recovered_at?: string | null;
+}
+
+export interface RecoveryStatusItem {
+  tenant_id: string;
+  system_health: string;
+  dead_letter_count: number;
+  failed_workflows_count: number;
+  recent_dead_letters: DeadLetterItem[];
+  failed_workflows: WorkflowInstanceItem[];
+}
+
+
 
 
 

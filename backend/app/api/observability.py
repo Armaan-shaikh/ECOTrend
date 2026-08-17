@@ -250,5 +250,10 @@ async def get_observability_metrics(db: Session = Depends(get_db)):
         "failed_jobs_24h": sum(1 for j in MOCK_JOBS if j["status"] == "FAILED"),
         "active_alerts_count": sum(1 for a in MOCK_ALERTS if a["status"] == "OPEN"),
         "healthy_sources_count": sum(1 for s in MOCK_SOURCES if s["status"] == "HEALTHY"),
-        "total_sources_count": len(MOCK_SOURCES)
+        "total_sources_count": len(MOCK_SOURCES),
+        "event_processing_latency_ms": 12.4,
+        "dead_letter_count": 0,
+        "duplicate_suppression_count": 42,
+        "webhook_success_rate_percent": 100.0,
+        "recovery_count": 5
     }

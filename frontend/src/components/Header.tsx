@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu, Sparkles, Brain, Lock, Zap } from 'lucide-react';
+import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText, Cpu, Sparkles, Brain, Lock, Zap, ShieldAlert } from 'lucide-react';
 import { EnvironmentalDomain } from '../lib/types';
 
 interface HeaderProps {
@@ -15,6 +15,7 @@ interface HeaderProps {
   onOpenDecisionModal: () => void;
   onOpenGovernanceModal: () => void;
   onOpenWorkflowModal: () => void;
+  onOpenReliabilityModal: () => void;
   isRefreshing: boolean;
 }
 
@@ -29,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDecisionModal,
   onOpenGovernanceModal,
   onOpenWorkflowModal,
+  onOpenReliabilityModal,
   isRefreshing,
 }) => {
   return (
@@ -42,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-eco-text">EcoTrend</h1>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 15 · Automation & Integrations
+                Phase 16 · Reliability & Recovery
               </span>
             </div>
             <p className="text-xs text-eco-muted font-medium">
@@ -128,6 +130,14 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenReliabilityModal}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs font-semibold text-rose-400 transition"
+        >
+          <ShieldAlert className="w-4 h-4" />
+          <span>Reliability & Security 🛡️</span>
+        </button>
+
         <button
           onClick={onOpenWorkflowModal}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-semibold text-purple-400 transition"

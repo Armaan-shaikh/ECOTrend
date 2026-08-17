@@ -43,7 +43,9 @@ import {
   WorkflowInstanceItem,
   DomainEventItem,
   NotificationLogItem,
-  WebhookSubscriptionItem
+  WebhookSubscriptionItem,
+  RecoveryStatusItem,
+  DeadLetterItem
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -740,6 +742,48 @@ export async function fetchWebhooks(): Promise<WebhookSubscriptionItem[]> {
     ];
   }
 }
+
+/* Enterprise Reliability, Security Validation & Disaster Recovery Methods (Phase 16) */
+
+export async function fetchRecoveryOverview(): Promise<RecoveryStatusItem> {
+  try {
+    const res = await fetch(`${API_V1}/operations/recovery`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch recovery overview');
+    return await res.json();
+  } catch (err) {
+    return {
+      tenant_id: "tenant_ecotrend_enterprise",
+      system_health: "RECOVERABLE",
+      dead_letter_count: 1,
+      failed_workflows_count: 0,
+      recent_dead_letters: [
+        { id: "dlq_001", tenant_id: "tenant_ecotrend_enterprise", workflow_id: "wf_inst_001", event_type: "INGESTION_FAILED", reason: "Network timeout connecting to OpenAQ upstream API.", status: "DEAD_LETTER", created_at: new Date().toISOString() }
+      ],
+      failed_workflows: []
+    };
+  }
+}
+
+export async function fetchDeadLetters(): Promise<DeadLetterItem[]> {
+  try {
+    const res = await fetch(`${API_V1}/operations/dead-letters`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch dead letters');
+    return await res.json();
+  } catch (err) {
+    return (await fetchRecoveryOverview()).recent_dead_letters;
+  }
+}
+
+export async function retryDeadLetter(id: string): Promise<DeadLetterItem> {
+  const res = await fetch(`${API_V1}/operations/dead-letters/${id}/retry`, { method: 'POST' });
+  return await res.json();
+}
+
+export async function recoverWorkflowInstance(id: string): Promise<WorkflowInstanceItem> {
+  const res = await fetch(`${API_V1}/operations/workflows/${id}/recover`, { method: 'POST' });
+  return await res.json();
+}
+
 
 
 
