@@ -50,6 +50,11 @@ import { MultiDomainRadarChart } from '../components/MultiDomainRadarChart';
 import { CrossDomainCorrelationMatrix } from '../components/CrossDomainCorrelationMatrix';
 import { DomainComparisonTable } from '../components/DomainComparisonTable';
 
+// Compliance & Risk Components (Phase 9)
+import { ComplianceAlertsPanel } from '../components/ComplianceAlertsPanel';
+import { EnvironmentalRiskMatrix } from '../components/EnvironmentalRiskMatrix';
+import { EHSReportExportModal } from '../components/EHSReportExportModal';
+
 import { DataAuditDrawer } from '../components/DataAuditDrawer';
 import { BacktestScorecardDrawer } from '../components/BacktestScorecardDrawer';
 import { EHSMethodologyModal } from '../components/EHSMethodologyModal';
@@ -80,7 +85,8 @@ import {
   fetchHistoricalNoiseAnalytics,
   fetchMultiDomainOverview,
   fetchCrossDomainCorrelations,
-  fetchDomainComparison
+  fetchDomainComparison,
+  fetchComplianceAlerts
 } from '../lib/api';
 
 import {
@@ -101,7 +107,8 @@ import {
   NoiseQualityScoreResponse,
   MultiDomainOverviewResponse,
   CrossDomainCorrelationResponse,
-  DomainComparisonResponse
+  DomainComparisonResponse,
+  ComplianceOverviewResponse
 } from '../lib/types';
 
 import { Shield, Layers, Droplet, Wind, Database, Sun, Volume2, Globe } from 'lucide-react';
@@ -165,6 +172,9 @@ export default function DashboardPage() {
   const [crossCorrelations, setCrossCorrelations] = useState<CrossDomainCorrelationResponse | null>(null);
   const [domainComparison, setDomainComparison] = useState<DomainComparisonResponse | null>(null);
 
+  // Compliance & Risk Data State (Phase 9)
+  const [complianceData, setComplianceData] = useState<ComplianceOverviewResponse | null>(null);
+
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [loadingForecast, setLoadingForecast] = useState<boolean>(true);
   const [loadingEHS, setLoadingEHS] = useState<boolean>(true);
@@ -191,6 +201,7 @@ export default function DashboardPage() {
   const [isSoilStandardsOpen, setIsSoilStandardsOpen] = useState<boolean>(false);
   const [isClimateStandardsOpen, setIsClimateStandardsOpen] = useState<boolean>(false);
   const [isNoiseStandardsOpen, setIsNoiseStandardsOpen] = useState<boolean>(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     loadTree();
@@ -201,6 +212,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    loadComplianceData();
+
     if (domain === 'overview') {
       loadMultiDomainData();
     } else if (domain === 'air') {
@@ -243,6 +256,15 @@ export default function DashboardPage() {
   const loadNoiseStations = async () => {
     const st = await fetchNoiseStations();
     setNoiseStations(st);
+  };
+
+  const loadComplianceData = async () => {
+    try {
+      const data = await fetchComplianceAlerts(selectedLocationId);
+      setComplianceData(data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const loadMultiDomainData = async () => {
@@ -403,6 +425,8 @@ export default function DashboardPage() {
 
   const handleRefreshPipeline = async () => {
     setIsRefreshing(true);
+    await loadComplianceData();
+
     if (domain === 'overview') {
       await loadMultiDomainData();
     } else if (domain === 'air') {
@@ -427,14 +451,24 @@ export default function DashboardPage() {
         onSelectDomain={setDomain}
         onRefresh={handleRefreshPipeline}
         onOpenAudit={() => setIsAuditOpen(true)}
+        onOpenReportModal={() => setIsReportModalOpen(true)}
         isRefreshing={isRefreshing}
       />
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* Phase 9: Active Environmental Risk Matrix & Compliance Alerts Banner */}
+        {complianceData && (
+          <EnvironmentalRiskMatrix riskAssessment={complianceData.risk_assessment} />
+        )}
+
         {domain === 'overview' ? (
-          /* UNIFIED 6-DOMAIN MULTI-INTELLIGENCE OVERVIEW (Phase 8) */
+          /* UNIFIED 6-DOMAIN MULTI-INTELLIGENCE OVERVIEW (Phase 8 & 9) */
           <>
             <MultiDomainOverviewCard overview={multiOverview} loading={loadingMultiDomain} />
+
+            {complianceData && (
+              <ComplianceAlertsPanel evaluations={complianceData.evaluations} />
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               <div className="lg:col-span-6">
@@ -739,7 +773,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400" />
             <span>
-              EcoTrend Phase 8 · <strong className="text-eco-text">Unified 6-Domain Environmental Intelligence Platform</strong>
+              EcoTrend Phase 9 · <strong className="text-eco-text">Standards & Guidelines Compliance Engine</strong>
             </span>
           </div>
 
@@ -787,6 +821,12 @@ export default function DashboardPage() {
       <NoiseStandardsModal
         isOpen={isNoiseStandardsOpen}
         onClose={() => setIsNoiseStandardsOpen(false)}
+      />
+
+      <EHSReportExportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        locationId={selectedLocationId}
       />
     </div>
   );

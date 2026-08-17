@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe } from 'lucide-react';
+import { Activity, ShieldCheck, Database, RefreshCw, Wind, Droplet, Layers, Sun, Volume2, Globe, FileText } from 'lucide-react';
 import { EnvironmentalDomain } from '../lib/types';
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
   onSelectDomain: (domain: EnvironmentalDomain) => void;
   onRefresh: () => void;
   onOpenAudit: () => void;
+  onOpenReportModal: () => void;
   isRefreshing: boolean;
 }
 
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectDomain,
   onRefresh,
   onOpenAudit,
+  onOpenReportModal,
   isRefreshing,
 }) => {
   return (
@@ -30,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-eco-text">EcoTrend</h1>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 8 · 6-Domain Unified
+                Phase 9 · EHS Compliance
               </span>
             </div>
             <p className="text-xs text-eco-muted font-medium">
@@ -116,10 +118,13 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-eco-bg border border-eco-border text-xs text-eco-muted font-mono">
-          <Database className="w-3.5 h-3.5 text-eco-cyan" />
-          <span>PostgreSQL / TimescaleDB</span>
-        </div>
+        <button
+          onClick={onOpenReportModal}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-eco-bg hover:bg-eco-hover border border-eco-border text-xs font-semibold text-eco-cyan transition"
+        >
+          <FileText className="w-4 h-4" />
+          <span>Export EHS Report</span>
+        </button>
 
         <button
           onClick={onOpenAudit}

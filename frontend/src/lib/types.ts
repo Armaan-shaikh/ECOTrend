@@ -424,3 +424,57 @@ export interface DomainComparisonItem {
 export interface DomainComparisonResponse {
   locations: DomainComparisonItem[];
 }
+
+/* Compliance & EHS Audit Report Types (Phase 9) */
+
+export interface ComplianceEvaluationItem {
+  rule_id: string;
+  domain: string;
+  metric: string;
+  unit: string;
+  averaging_period: string;
+  observed_value?: number | null;
+  threshold: number;
+  threshold_direction: string;
+  is_exceeded: boolean;
+  status: string;
+  evaluation_severity: string;
+  reference_name: string;
+  reference_type: string;
+  jurisdiction: string;
+  source_url: string;
+  provenance: string;
+  explanation: string;
+}
+
+export interface RiskAssessmentResponse {
+  compounding_risk_score: number;
+  risk_tier: string;
+  color: string;
+  recommended_action: string;
+  total_evaluated_rules: number;
+  exceeded_rules_count: number;
+  critical_rules_count: number;
+  warning_rules_count: number;
+  methodology_reference: string;
+  attribution_notice: string;
+  explanation: string;
+}
+
+export interface ComplianceOverviewResponse {
+  location_id: string;
+  evaluations: ComplianceEvaluationItem[];
+  risk_assessment: RiskAssessmentResponse;
+}
+
+export interface EHSReportExportResponse {
+  report_title: string;
+  generated_at: string;
+  location_id: string;
+  location_name: string;
+  executive_summary: Record<string, any>;
+  risk_assessment: Record<string, any>;
+  cepi_overview: Record<string, any>;
+  evaluations_detail: ComplianceEvaluationItem[];
+  markdown_content?: string | null;
+}

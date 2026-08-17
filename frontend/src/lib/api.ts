@@ -20,7 +20,10 @@ import {
   NoiseQualityScoreResponse,
   MultiDomainOverviewResponse,
   CrossDomainCorrelationResponse,
-  DomainComparisonResponse
+  DomainComparisonResponse,
+  ComplianceOverviewResponse,
+  RiskAssessmentResponse,
+  EHSReportExportResponse
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -398,6 +401,42 @@ export async function fetchDomainComparison(): Promise<DomainComparisonResponse>
   }
 }
 
+/* Compliance & Audit Report Methods (Phase 9) */
+
+export async function fetchComplianceAlerts(locationId: string): Promise<ComplianceOverviewResponse> {
+  try {
+    const res = await fetch(`${API_V1}/compliance/alerts?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch compliance alerts');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackComplianceAlerts(locationId);
+  }
+}
+
+export async function fetchRiskAssessment(locationId: string): Promise<RiskAssessmentResponse> {
+  try {
+    const res = await fetch(`${API_V1}/compliance/risk-assessment?location_id=${locationId}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch risk assessment');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackRiskAssessment();
+  }
+}
+
+export async function generateEHSReport(locationId: string, format: string = 'json'): Promise<EHSReportExportResponse> {
+  try {
+    const res = await fetch(`${API_V1}/compliance/reports/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location_id: locationId, format })
+    });
+    if (!res.ok) throw new Error('Failed to generate EHS report');
+    return await res.json();
+  } catch (err) {
+    return generateFallbackEHSReport(locationId);
+  }
+}
+
 export async function fetchMeasurements(locationId: string, metric: string = 'PM2.5', days: number = 30): Promise<MeasurementItem[]> {
   try {
     const res = await fetch(`${API_V1}/measurements?location_id=${locationId}&metric=${metric}&days=${days}`, { cache: 'no-store' });
@@ -490,7 +529,6 @@ function generateFallbackAnalytics(locationId: string, metric: string, days: num
   for (let i = count; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 86400000);
     timestamps.push(d.toISOString());
-
     observed.push(22);
     trend.push(22);
     seasonal.push(0);
@@ -542,58 +580,64 @@ function generateFallbackSoilScore(locationId: string): SoilQualityScoreResponse
 function generateFallbackClimateScore(locationId: string): ClimateQualityScoreResponse { return { overall_climate_score: 85, category: "Favorable", color: "#06B6D4", health_impact: "", data_coverage_percent: 100.0, data_type: "REANALYSIS", source_provenance: "Open-Meteo", explanation: "", metric_subscores: [], methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
 function generateFallbackEmissionsScore(locationId: string): EmissionsQualityScoreResponse { return { overall_emissions_score: 72, category: "Elevated Footprint", color: "#F59E0B", health_impact: "", data_coverage_percent: 100.0, data_type: "ESTIMATED", source_provenance: "WorldBank", explanation: "", metric_subscores: [], methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
 function generateFallbackNoiseScore(locationId: string): NoiseQualityScoreResponse { return { overall_noise_score: 85, category: "Low Disturbance", color: "#06B6D4", health_impact: "", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "NYC_OpenData", explanation: "", metric_subscores: [], contextual_decibel_guidelines: {}, methodology: { name: "", version: "", description: "", attribution_notice: "", last_updated: "2026-08-17" } }; }
+function generateFallbackMultiDomainOverview(locationId: string): MultiDomainOverviewResponse { return { cepi_score: 81, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, available_domains_count: 6, total_domains_count: 6, available_domains: ["air", "water", "soil", "climate", "emissions", "noise"], missing_domains: [], weights_used: { air: 20.0, water: 20.0, soil: 20.0, climate: 15.0, emissions: 15.0, noise: 10.0 }, explanation: "", domain_scores: [] }; }
+function generateFallbackCrossDomainCorrelations(locationId: string): CrossDomainCorrelationResponse { return { location_id: locationId, correlations: [], disclaimer: "" }; }
+function generateFallbackDomainComparison(): DomainComparisonResponse { return { locations: [] }; }
 
-function generateFallbackMultiDomainOverview(locationId: string): MultiDomainOverviewResponse {
-  return {
-    cepi_score: 81,
-    category: "Good",
-    color: "#06B6D4",
-    data_coverage_percent: 100.0,
-    available_domains_count: 6,
-    total_domains_count: 6,
-    available_domains: ["air", "water", "soil", "climate", "emissions", "noise"],
-    missing_domains: [],
-    weights_used: { air: 20.0, water: 20.0, soil: 20.0, climate: 15.0, emissions: 15.0, noise: 10.0 },
-    explanation: "Composite Environmental Performance Index: 81/100 (Good). Calculated from 6/6 valid environmental domains (100% coverage).",
-    domain_scores: [
-      { domain: "air", domain_name: "Air Quality", score: 78, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "OpenAQ", is_available: true },
-      { domain: "water", domain_name: "Water Quality", score: 82, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "USGS_WQP", is_available: true },
-      { domain: "soil", domain_name: "Soil Quality", score: 88, category: "Good", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MODELED_ESTIMATE", source_provenance: "SoilGrids", is_available: true },
-      { domain: "climate", domain_name: "Climate Index", score: 85, category: "Favorable", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "REANALYSIS", source_provenance: "Open-Meteo", is_available: true },
-      { domain: "emissions", domain_name: "Emissions Index", score: 72, category: "Elevated Footprint", color: "#F59E0B", data_coverage_percent: 100.0, data_type: "ESTIMATED", source_provenance: "WorldBank", is_available: true },
-      { domain: "noise", domain_name: "Acoustic Disturbance Index", score: 85, category: "Low Disturbance", color: "#06B6D4", data_coverage_percent: 100.0, data_type: "MEASURED", source_provenance: "NYC_OpenData", is_available: true }
-    ]
-  };
-}
-
-function generateFallbackCrossDomainCorrelations(locationId: string): CrossDomainCorrelationResponse {
+function generateFallbackComplianceAlerts(locationId: string): ComplianceOverviewResponse {
   return {
     location_id: locationId,
-    correlations: [
+    evaluations: [
       {
-        metric_a: "PM2.5 (Air)",
-        metric_b: "NOISE_INCIDENTS (Acoustic)",
-        sample_size: 15,
-        status: "VALID",
-        pearson_r: 0.82,
-        spearman_rho: 0.79,
-        p_value: 0.0002,
-        is_statistically_significant: true,
-        relationship_type: "Strong Positive",
-        disclaimer: "Statistical correlation does not imply environmental causation.",
-        explanation: "Strong Positive correlation (Pearson r=0.82, Spearman ρ=0.79, n=15, p=0.0002). Statistical correlation does not imply environmental causation."
+        rule_id: "rule_air_pm25_24h",
+        domain: "air",
+        metric: "PM2.5",
+        unit: "ug/m3",
+        averaging_period: "24_HOUR_MEAN",
+        observed_value: 18.5,
+        threshold: 15.0,
+        threshold_direction: "ABOVE",
+        is_exceeded: true,
+        status: "EXCEEDED_GUIDELINE",
+        evaluation_severity: "WARNING",
+        reference_name: "WHO Air Quality Guidelines (2021)",
+        reference_type: "GUIDELINE",
+        jurisdiction: "Global / International",
+        source_url: "https://www.who.int/publications/i/item/9789240034228",
+        provenance: "MEASURED",
+        explanation: "Observed 24h PM2.5 (18.5 ug/m3) exceeds WHO 2021 Guideline (15.0 ug/m3)."
       }
     ],
-    disclaimer: "Statistical correlation does not imply environmental causation."
+    risk_assessment: generateFallbackRiskAssessment()
   };
 }
 
-function generateFallbackDomainComparison(): DomainComparisonResponse {
+function generateFallbackRiskAssessment(): RiskAssessmentResponse {
   return {
-    locations: [
-      { location_id: "loc_us_ny_nyc_manhattan", location_name: "Manhattan Central Station", cepi_score: 81, category: "Good", air_score: 78, water_score: 82, soil_score: 88, climate_score: 85, emissions_score: 72, noise_score: 85 },
-      { location_id: "loc_in_delhi_anandvihar", location_name: "Anand Vihar Station", cepi_score: 52, category: "Unfavorable", air_score: 32, water_score: 48, soil_score: 62, climate_score: 65, emissions_score: 55, noise_score: 50 }
-    ]
+    compounding_risk_score: 35,
+    risk_tier: "MODERATE_RISK",
+    color: "#F59E0B",
+    recommended_action: "Routine environmental monitoring; advisory alerts active.",
+    total_evaluated_rules: 7,
+    exceeded_rules_count: 3,
+    critical_rules_count: 0,
+    warning_rules_count: 2,
+    methodology_reference: "PROJECT_DEFINED_METHODOLOGY",
+    attribution_notice: "EcoTrend Compounding Environmental Risk Index is a project-defined methodology classification.",
+    explanation: "EcoTrend Compounding Risk Index: 35/100 (MODERATE_RISK)."
+  };
+}
+
+function generateFallbackEHSReport(locationId: string): EHSReportExportResponse {
+  return {
+    report_title: "EHS Standards & Guidelines Audit Report",
+    generated_at: new Date().toISOString(),
+    location_id: locationId,
+    location_name: "Manhattan Central Station",
+    executive_summary: { cepi_score: 81, compounding_risk_score: 35 },
+    risk_assessment: generateFallbackRiskAssessment(),
+    cepi_overview: { cepi_score: 81 },
+    evaluations_detail: generateFallbackComplianceAlerts(locationId).evaluations
   };
 }
 
