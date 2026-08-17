@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
 from app.core.database import get_db
+from app.core.cache import cached_endpoint
 from app.engine.multi_domain import MultiDomainEngine, CAUSATION_DISCLAIMER
 from app.schemas.multi_domain import (
     MultiDomainOverviewResponse,
@@ -14,6 +15,7 @@ from app.schemas.multi_domain import (
 router = APIRouter(prefix="/multi-domain", tags=["Unified 6-Domain Intelligence"])
 
 @router.get("/overview", response_model=MultiDomainOverviewResponse)
+@cached_endpoint(prefix="ecotrend:multi_domain", ttl_seconds=300)
 async def get_multi_domain_overview(
     location_id: str = Query("loc_us_ny_nyc_manhattan", description="Location ID"),
     db: Session = Depends(get_db)
@@ -109,6 +111,7 @@ async def get_multi_domain_overview(
     }
 
 @router.get("/correlations", response_model=CrossDomainCorrelationResponse)
+@cached_endpoint(prefix="ecotrend:multi_domain", ttl_seconds=300)
 async def get_cross_domain_correlations(
     location_id: str = Query("loc_us_ny_nyc_manhattan", description="Location ID"),
     db: Session = Depends(get_db)
@@ -116,7 +119,6 @@ async def get_cross_domain_correlations(
     """
     Get cross-domain statistical correlations (Pearson r + Spearman rho) with n >= 10 constraint and causation disclaimers.
     """
-    # Sample aligned series for demonstration
     pm25_series = [12.0, 14.5, 18.2, 22.1, 25.4, 19.8, 15.2, 11.8, 13.4, 16.2, 20.1, 24.0, 18.5, 14.2, 12.8]
     noise_series = [2.0, 3.0, 5.0, 7.0, 8.0, 6.0, 4.0, 2.0, 3.0, 5.0, 6.0, 8.0, 5.0, 3.0, 2.0]
     temp_series = [18.2, 19.5, 22.0, 24.5, 27.1, 28.5, 26.2, 23.1, 21.0, 19.8, 18.0, 17.5, 20.2, 22.4, 24.1]
@@ -132,6 +134,7 @@ async def get_cross_domain_correlations(
     }
 
 @router.get("/comparison", response_model=DomainComparisonResponse)
+@cached_endpoint(prefix="ecotrend:multi_domain", ttl_seconds=300)
 async def get_domain_comparison(db: Session = Depends(get_db)):
     """
     Get multi-station comparative environmental performance leaderboard across 6 domains.
