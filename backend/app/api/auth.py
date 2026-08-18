@@ -43,13 +43,26 @@ MOCK_USERS_DB = {
         "role": "ANALYST",
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat()
+    },
+    "viewer@ecotrend.io": {
+        "id": "usr_viewer_004",
+        "tenant_id": DEFAULT_TENANT_ID,
+        "email": "viewer@ecotrend.io",
+        "hashed_password": hash_password("ViewerPass123!"),
+        "full_name": "Read-Only Viewer",
+        "role": "VIEWER",
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 }
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     if not authorization:
-        # Fallback to default admin user for backward compatibility if header missing
-        return MOCK_USERS_DB["admin@ecotrend.io"]
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token missing or invalid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     token = authorization.replace("Bearer ", "").strip()
     payload = decode_access_token(token)

@@ -120,18 +120,26 @@ def test_auth_login_and_me_endpoints():
     assert me_res.json()["email"] == "admin@ecotrend.io"
 
 def test_admin_governance_endpoints():
-    users_res = client.get("/api/v1/admin/users")
+    login_res = client.post("/api/v1/auth/login", json={"email": "admin@ecotrend.io", "password": "AdminPass123!"})
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    users_res = client.get("/api/v1/admin/users", headers=headers)
     assert users_res.status_code == 200
     assert len(users_res.json()) >= 3
 
-    audit_res = client.get("/api/v1/admin/audit")
+    audit_res = client.get("/api/v1/admin/audit", headers=headers)
     assert audit_res.status_code == 200
 
-    sec_res = client.get("/api/v1/admin/security/summary")
+    sec_res = client.get("/api/v1/admin/security/summary", headers=headers)
     assert sec_res.status_code == 200
     assert sec_res.json()["rbac_status"] == "DENY_BY_DEFAULT_ENFORCED"
 
 def test_approvals_endpoints():
-    approvals_res = client.get("/api/v1/approvals")
+    login_res = client.post("/api/v1/auth/login", json={"email": "admin@ecotrend.io", "password": "AdminPass123!"})
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    approvals_res = client.get("/api/v1/approvals", headers=headers)
     assert approvals_res.status_code == 200
     assert len(approvals_res.json()) >= 1
